@@ -54,6 +54,173 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(30px);bottom:96px;z-index:60;background:#111827;color:#fff;padding:12px 16px;border-radius:14px;font-size:13px;font-weight:900;opacity:0;transition:.25s;max-width:calc(100% - 40px)}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .admin-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.admin-tabs button{border:1px solid var(--line);background:#fff;padding:10px 8px;border-radius:14px;font-size:12px;font-weight:900;cursor:pointer}.admin-tabs button.active{background:var(--soft);border-color:#ffd9bf;color:var(--orange)}
 .cameraBox{overflow:hidden;border-radius:18px;border:1px solid var(--line);background:#000;aspect-ratio:3/4;display:grid;place-items:center}.cameraBox video{width:100%;height:100%;object-fit:cover}.scanResult{margin-top:10px;padding:12px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px;line-height:1.45}.reservation-item{border:1px solid var(--line);border-radius:18px;padding:12px;background:#fff;margin-bottom:10px}
+
+.dashboard-card{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 92% 4%, rgba(255,122,33,.18), transparent 28%),
+    linear-gradient(180deg,#ffffff 0%,#fffaf5 100%);
+  border:1px solid #ffe2ca;
+}
+.dashboard-card::after{
+  content:"";
+  position:absolute;
+  right:-34px;
+  top:-34px;
+  width:118px;
+  height:118px;
+  border-radius:999px;
+  background:rgba(255,122,33,.08);
+}
+.menu-kicker{display:flex;align-items:center;gap:8px;color:#ea580c;font-size:13px;font-weight:900;margin-bottom:8px}
+.menu-kicker-dot{width:8px;height:8px;border-radius:999px;background:#ff7a21;box-shadow:0 0 0 6px rgba(255,122,33,.12)}
+.menu-main-title{font-size:22px;font-weight:950;letter-spacing:-.4px;margin:0 0 6px}
+.menu-summary{font-size:13px;color:#6b7280;line-height:1.45;margin-bottom:14px}
+.menu-chip-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.menu-chip{display:inline-flex;align-items:center;padding:8px 10px;border-radius:999px;background:#fff;border:1px solid #ffe1c9;color:#374151;font-size:13px;font-weight:800}
+.reserve-status-card{background:#fff;border:1px solid #f1f5f9;border-radius:18px;padding:13px;margin-top:14px}
+.notice-card{background:linear-gradient(180deg,#fff,#fbfaff);border:1px solid #ede7ff}
+
+
+.calendar-pop{
+  margin-top:10px;
+  padding:12px;
+  border-radius:18px;
+  border:1px solid #e5e7eb;
+  background:#fff;
+}
+.calendar-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:10px;
+}
+.calendar-grid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+}
+.calendar-weekday{
+  text-align:center;
+  font-size:11px;
+  color:#6b7280;
+  font-weight:900;
+  padding:4px 0;
+}
+.calendar-day{
+  border:1px solid #f1f5f9;
+  background:#fff;
+  border-radius:12px;
+  padding:8px 0;
+  font-size:13px;
+  font-weight:900;
+  cursor:pointer;
+}
+.calendar-day.muted{
+  color:#cbd5e1;
+  background:#f8fafc;
+}
+.calendar-day.active{
+  color:#fff;
+  border-color:#ff7a21;
+  background:#ff7a21;
+}
+.noshow-warning{
+  margin-top:14px;
+  padding:13px;
+  border-radius:16px;
+  background:#fff1f2;
+  border:1px solid #fecdd3;
+  color:#9f1239;
+  font-size:13px;
+  line-height:1.5;
+  font-weight:800;
+}
+.noshow-row{
+  background:#fff7ed;
+  border-color:#fed7aa;
+}
+
+
+.reserve-focus-card{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(180deg,#fff7ed 0%,#ffffff 100%);
+  border:1.5px solid #fed7aa;
+  box-shadow:0 16px 34px rgba(255,122,33,.14);
+}
+.reserve-focus-card::before{
+  content:"";
+  position:absolute;
+  top:-46px;
+  right:-46px;
+  width:132px;
+  height:132px;
+  border-radius:999px;
+  background:rgba(255,122,33,.13);
+}
+.reserve-focus-head{
+  position:relative;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.reserve-focus-title{
+  font-size:21px;
+  font-weight:950;
+  letter-spacing:-.4px;
+  margin:0 0 5px;
+}
+.reserve-focus-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:44px;
+  height:44px;
+  border-radius:16px;
+  color:#fff;
+  font-size:20px;
+  background:linear-gradient(135deg,#ff8b3d,#ff6a00);
+  box-shadow:0 10px 20px rgba(255,106,0,.24);
+}
+.reserve-info-grid{
+  position:relative;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+  margin-bottom:14px;
+}
+.reserve-info-cell{
+  padding:10px 8px;
+  border-radius:14px;
+  border:1px solid #ffedd5;
+  background:rgba(255,255,255,.72);
+  text-align:center;
+}
+.reserve-info-cell b{display:block;font-size:13px;margin-top:3px;color:#111827}
+.reserve-info-cell span{font-size:11px;color:#9a3412;font-weight:900}
+.reserve-guide-text{
+  position:relative;
+  font-size:13px;
+  color:#9a3412;
+  font-weight:800;
+  margin-bottom:12px;
+  line-height:1.45;
+}
+.menu-check-card{
+  background:#ffffff;
+  border:1px solid #e5e7eb;
+}
+.menu-check-title{
+  font-size:18px;
+  font-weight:950;
+  margin:0 0 4px;
+}
+
 </style>
 </head>
 
@@ -93,7 +260,7 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
       <div class="form">
         <input id="name" class="input" placeholder="이름" />
         <select id="dept" class="select">
-          <option value="">부서 선택</option><option>기획실</option><option>총무과</option><option>복지정책과</option><option>세무과</option><option>민원봉사과</option><option>환경관리과</option><option>의회사무국</option><option>기타</option>
+          <option value="">부서 선택</option><option>비서실</option><option>기획실</option><option>홍보실</option><option>감사담당관</option><option>주민자치과</option><option>공원녹지과</option><option>행복교육과</option><option>민원봉사과</option><option>문화예술과</option><option>민생경제과</option><option>시장산업과</option><option>체육관광과</option><option>도서관과</option><option>돌봄정책과</option><option>돌봄지원과</option><option>저출산고령사회정책과</option><option>장애인희망복지과</option><option>복지정책과</option><option>복지급여과</option><option>양성아동복지과</option><option>일자리청년지원과</option><option>자원순환과</option><option>기후환경과</option><option>교통행정과</option><option>교통지도과</option><option>안전총괄과</option><option>도시공간과</option><option>건설과</option><option>건축과</option><option>주택과</option><option>행정지원과</option><option>세무1과</option><option>세무2과</option><option>회계정보과</option><option>토지정보과</option><option>보건행정과</option><option>감염병관리과</option><option>건강증진과</option><option>보건위생과</option><option>건강생활지원센터</option><option>치매안심센터</option><option>의회사무국</option>
         </select>
         <input id="emp" class="input" placeholder="직원번호 끝 4자리" maxlength="4" inputmode="numeric" />
         <div class="tiny">직원 정보는 이 기기에 저장됩니다.</div>
@@ -122,6 +289,7 @@ let firebaseOn=false;
 let unsubReservations=null;
 let unsubMenus=null;
 let unsubNotices=null;
+let unsubPenalties=null;
 
 let st={
   tab:"home",
@@ -131,6 +299,9 @@ let st={
   reservations:getLocal("reservations",[]),
   menus:getLocal("menus",{}),
   notices:getLocal("notices",[]),
+  penalties:getLocal("penalties",{}),
+  menuPreviewDate:fmt(new Date()),
+  menuCalendarOpen:false,
   showHistory:false,
   adminUnlocked:false,
   adminTab:"camera",
@@ -141,10 +312,59 @@ let st={
 const views={
   home(){const m=menu(st.date),total=byDate(st.date).length,max=SLOTS.reduce((a,b)=>a+b[1],0),p=Math.round(total/max*100);return `
     <div class="card"><div class="row"><div><div style="font-weight:900">${st.user?esc(st.user.name):"직원"}님, 즐거운 점심시간 되세요!</div><div class="sub">${pretty(st.date)}</div></div><span class="badge">${myOnDate(st.date)?"예약 있음":"예약 가능"}</span></div></div>
-    <div class="card"><div class="hero"><div class="platewrap">${plateSVG()}</div><div style="flex:1"><span class="badge">오늘의 중식</span><div class="meal-name">${esc(m.main||"한식 백반")}</div><div class="sub" style="margin-bottom:8px">${pretty(st.date)}</div><ul class="menu-list">${String(m.menu||"").split(/,|\n/).filter(Boolean).map(v=>`<li>${esc(v.trim())}</li>`).join("")}</ul>${m.note?`<div class="tiny" style="margin-top:8px">${esc(m.note)}</div>`:""}</div></div><div class="line"></div><div class="row" style="margin-bottom:8px"><strong>예약 현황</strong><span class="tiny">${total} / ${max}명 · ${p}%</span></div><div class="bar"><div class="fill" style="width:${Math.min(p,100)}%"></div></div><div class="btnrow"><button class="btn primary full" onclick="go('reserve')">예약하기</button></div></div>
+    <div class="card dashboard-card">
+      <div class="menu-kicker"><span class="menu-kicker-dot"></span><span>오늘의 점심</span></div>
+      <h2 class="menu-main-title">${pretty(st.date)}</h2>
+      <div class="menu-summary">오늘 준비된 메뉴를 확인하고 원하는 입장 시각을 예약해주세요.</div>
+      <div class="menu-chip-wrap">${menuItems(m.menu).map(v=>`<span class="menu-chip">${esc(v)}</span>`).join("")}</div>
+      ${m.note?`<div class="tiny" style="margin-top:10px">${esc(m.note)}</div>`:""}
+      <div class="reserve-status-card">
+        <div class="row" style="margin-bottom:8px"><strong>예약 현황</strong><span class="tiny">${total} / ${max}명 · ${p}%</span></div>
+        <div class="bar"><div class="fill" style="width:${Math.min(p,100)}%"></div></div>
+      </div>
+      <div class="btnrow"><button class="btn primary full" onclick="go('reserve')">입장 시각 예약하기</button></div>
+    </div>
     <div class="card notice-card"><div class="row" style="align-items:flex-start"><div><div class="title" style="font-size:16px;margin-bottom:4px">구내식당 이용안내 · 공지사항</div><div class="tiny">관리자 화면에서 공지와 버전업 내용을 등록할 수 있습니다.</div></div><span class="badge" style="background:#f3f0ff;border-color:#e7ddff;color:#6d28d9">업데이트</span></div><div class="line"></div>${homeNoticeList()}</div>`},
-  reserve(){const m=menu(st.date);return `<div class="card"><div class="row"><div><div class="title">입장 예정시각 선택</div><div class="sub">날짜별 메뉴를 확인한 뒤 원하는 입장 시각을 선택해주세요.</div></div><button class="btn light small" onclick="go('home')">홈</button></div><div class="line"></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center" onclick="openMenuDetail()">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="quick"><button class="${activeQuick(0)}" onclick="quick(0)">오늘</button><button class="${activeQuick(1)}" onclick="quick(1)">내일</button><button class="${activeQuick(2)}" onclick="quick(2)">모레</button></div><div class="mini-card" onclick="openMenuDetail()" style="cursor:pointer;margin-bottom:14px"><div class="row"><div><div style="font-weight:900">${esc(m.main||"한식 백반")}</div><div class="sub">선택한 날짜의 점심 메뉴</div></div><span class="badge">메뉴 보기</span></div><div class="tiny" style="margin-top:8px;line-height:1.45">${esc((m.menu||"").split(",").slice(0,3).join(", "))}${(m.menu||"").split(",").length>3?" 외":""}</div></div><div class="mini-card" style="margin-bottom:14px"><div class="detail"><span>식사 구분</span><b>중식</b></div><div class="detail"><span>인원</span><b>1명</b></div><div class="detail"><span>예약 마감</span><b style="color:#ea580c">오전 10:00</b></div></div><div class="slots">${SLOTS.map(s=>{const rem=remain(st.date,s[0]),stt=status(rem,s[1]);return `<button class="slot ${st.slot===s[0]?"active":""} ${rem<=0?"disabled":""}" onclick="selectSlot('${s[0]}')"><div class="time">${s[0]}</div><div class="meta">잔여 ${rem}명 / 정원 ${s[1]}명</div><div class="status ${stt[1]}">${stt[0]}</div></button>`}).join("")}</div><div class="notice">입장 예정시각은 대기 줄 분산을 위한 기준입니다. 실제 식사 시간은 별도로 제한되지 않습니다.</div><div class="btnrow"><button class="btn primary full" onclick="reserve()">예약 확정</button></div></div>`},
-  my(){const r=latest();if(!r)return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:36px">🎫</div><p>아직 예약이 없습니다.</p><button class="btn primary" onclick="go('reserve')">예약하러 가기</button></div>`;return `<div class="card" style="background:linear-gradient(#fff,#fff6ef);border:1px solid #ffe1c9"><div class="row"><div><div class="title" style="margin-bottom:4px">내 예약</div><div class="sub">급식실 앞에서 QR 코드를 제시해주세요.</div></div><span class="pill ${r.status==="checkedin"?"checkin":"reserve"}">${r.status==="checkedin"?"입장 완료":"예약 완료"}</span></div><div id="qrBox"></div><div class="code">${esc(r.code)}</div><div class="detail"><span>예약일시</span><b>${pretty(r.date)} ${esc(r.time)}</b></div><div class="detail"><span>식사 구분</span><b>${esc(r.meal)}</b></div><div class="detail"><span>식당</span><b>${esc(r.place)}</b></div><div class="detail"><span>위치</span><b>${esc(r.loc)}</b></div><div class="detail"><span>메뉴</span><b>${esc(r.main||"한식 백반")}</b></div><div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약취소</button><button class="btn soft full" onclick="toggleHistory()">내역보기</button></div></div>${st.showHistory?historyView():""}`},
+  reserve(){
+    const bookingDate=todayDate();
+    const previewDate=st.menuPreviewDate||bookingDate;
+    const m=menu(previewDate);
+    const blocked=st.user && isBlocked(st.user.emp, bookingDate);
+    return `<div class="card menu-check-card">
+      <div class="row" style="align-items:flex-start">
+        <div>
+          <div class="menu-check-title">식단표 확인</div>
+          <div class="sub">다른 날짜는 식단표만 확인할 수 있고, 예약은 오늘 점심만 가능합니다.</div>
+        </div>
+        <button class="btn soft small" onclick="toggleMenuCalendar()">${pretty(previewDate)}</button>
+      </div>
+      ${st.menuCalendarOpen?calendarDropdown(previewDate):""}
+      <div class="line"></div>
+      <div style="font-weight:900;margin-bottom:8px">${cleanMain(m.main)?esc(m.main):"점심 메뉴"}</div>
+      <div class="menu-chip-wrap">${menuItems(m.menu).map(v=>`<span class="menu-chip">${esc(v)}</span>`).join("")}</div>
+      ${m.note?`<div class="tiny" style="margin-top:10px">${esc(m.note)}</div>`:""}
+    </div>
+
+    <div class="card reserve-focus-card">
+      <div class="reserve-focus-head">
+        <div>
+          <h2 class="reserve-focus-title">입장 예정시각 선택</h2>
+          <div class="sub">오늘 예약할 시간을 선택해주세요. 이 영역이 실제 예약 단계입니다.</div>
+        </div>
+        <div class="reserve-focus-badge">⏱</div>
+      </div>
+      <div class="reserve-info-grid">
+        <div class="reserve-info-cell"><span>예약일</span><b>오늘</b></div>
+        <div class="reserve-info-cell"><span>구분</span><b>점심식사</b></div>
+        <div class="reserve-info-cell"><span>마감</span><b>10:00</b></div>
+      </div>
+      <div class="reserve-guide-text">원하는 입장 예정시각을 선택하면 아래 버튼으로 예약을 확정할 수 있습니다.</div>
+      <div class="slots">${SLOTS.map(s=>{const rem=remain(bookingDate,s[0]),stt=status(rem,s[1]);return `<button class="slot ${st.slot===s[0]?"active":""} ${rem<=0||blocked?"disabled":""}" onclick="selectSlot('${s[0]}')"><div class="time">${s[0]}</div><div class="meta">잔여 ${rem}명 / 정원 ${s[1]}명</div><div class="status ${stt[1]}">${stt[0]}</div></button>`}).join("")}</div>
+      <div class="noshow-warning">예약 후 입장하지 않으면 관리자 화면에서 노쇼로 표시됩니다. 노쇼 처리 시 다음날 예약이 제한됩니다.</div>
+      ${blocked?`<div class="noshow-warning">예약 제한 대상입니다. ${blockMessage(st.user.emp,bookingDate)}</div>`:""}
+      <div class="btnrow"><button class="btn primary full" onclick="reserve()" ${blocked?"disabled":""}>예약 확정</button></div>
+    </div>`},
+  my(){const r=latest();if(!r)return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:36px">🎫</div><p>아직 예약이 없습니다.</p><button class="btn primary" onclick="go('reserve')">예약하러 가기</button></div>`;return `<div class="card" style="background:linear-gradient(#fff,#fff6ef);border:1px solid #ffe1c9"><div class="row"><div><div class="title" style="margin-bottom:4px">내 예약</div><div class="sub">급식실 앞에서 QR 코드를 제시해주세요.</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"?"cancel":"reserve"}">${r.status==="checkedin"?"입장 완료":"예약 완료"}</span></div><div id="qrBox"></div><div class="code">${esc(r.code)}</div><div class="detail"><span>예약일시</span><b>${pretty(r.date)} ${esc(r.time)}</b></div><div class="detail"><span>예약 구분</span><b>${esc(r.meal||"점심식사")}</b></div><div class="detail"><span>식당</span><b>${esc(r.place)}</b></div><div class="detail"><span>위치</span><b>${esc(r.loc)}</b></div><div class="detail"><span>메뉴</span><b>${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</b></div><div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약취소</button><button class="btn soft full" onclick="toggleHistory()">내역보기</button></div></div>${st.showHistory?historyView():""}`},
   more(){const userText=st.user?`${esc(st.user.name)} · ${esc(st.user.dept)} · ${esc(st.user.emp)}`:"미등록";return `<div class="card"><div class="title">더보기</div><div class="sub">설정과 관리자 기능을 여기에서 확인할 수 있습니다.</div><div class="line"></div><div class="mini-card"><div style="font-weight:900">내 정보</div><div class="sub" style="margin-top:6px">${userText}</div><div class="btnrow"><button class="btn light full" onclick="editUser()">정보수정</button><button class="btn light full" onclick="logout()">로그아웃</button></div></div><div class="btnrow"><button class="btn soft full" onclick="rules()">이용수칙</button><button class="btn soft full" onclick="allergy()">알레르기</button></div><div class="btnrow"><button class="btn light full" onclick="unlockAdmin()">관리자 모드</button><button class="btn light full" onclick="resetLocal()">로컬 초기화</button></div>${!firebaseOn?`<div class="notice">Firebase 연결에 실패하면 로컬 데모 데이터로 표시됩니다. GitHub Pages 주소에서 다시 확인해주세요.</div>`:""}</div>${st.adminUnlocked?adminView():""}`}
 };
 
@@ -158,6 +378,7 @@ async function init(){
     setModeBadge();
     listenMenus();
     listenNotices();
+    listenPenalties();
     listenReservations();
   }catch(e){
     console.error("Firebase init failed:", e);
@@ -171,18 +392,18 @@ async function init(){
 
 function setModeBadge(){const b=document.getElementById("modeBadge");if(!b)return;b.textContent=firebaseOn?"실시간":"데모";b.className="badge "+(firebaseOn?"live":"demo")}
 function getLocal(k,f){try{return JSON.parse(localStorage.getItem("sg_real_"+k))??f}catch{return f}}
-function saveLocal(){localStorage.setItem("sg_real_user",JSON.stringify(st.user));localStorage.setItem("sg_real_reservations",JSON.stringify(st.reservations));localStorage.setItem("sg_real_menus",JSON.stringify(st.menus));localStorage.setItem("sg_real_notices",JSON.stringify(st.notices))}
+function saveLocal(){localStorage.setItem("sg_real_user",JSON.stringify(st.user));localStorage.setItem("sg_real_reservations",JSON.stringify(st.reservations));localStorage.setItem("sg_real_menus",JSON.stringify(st.menus));localStorage.setItem("sg_real_notices",JSON.stringify(st.notices));localStorage.setItem("sg_real_penalties",JSON.stringify(st.penalties))}
 function fmt(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function pretty(date){const d=new Date(date+"T00:00:00");return d.getFullYear()+"."+String(d.getMonth()+1).padStart(2,"0")+"."+String(d.getDate()).padStart(2,"0")+" ("+"일월화수목금토"[d.getDay()]+")"}
 function esc(str){return String(str||"").replace(/[&<>\"]/g,s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[s]))}
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toastT);window.__toastT=setTimeout(()=>el.classList.remove("show"),1800)}
 function updateLoginState(){document.getElementById("login").classList.toggle("show",!st.user)}
 function saveLogin(){const name=document.getElementById("name").value.trim(),dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim();if(!name)return toast("이름을 입력해주세요.");if(!dept)return toast("부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("직원번호 끝 4자리를 입력해주세요.");st.user={name,dept,emp};saveLocal();updateLoginState();render();toast("직원 정보가 저장되었습니다.")}
-function go(tab){st.tab=tab;if(tab!=="more"){st.adminUnlocked=false;stopScanner()}render()}
+function go(tab){st.tab=tab;if(tab==="reserve"){st.date=todayDate();st.menuPreviewDate=todayDate();st.menuCalendarOpen=false;}if(tab!=="more"){st.adminUnlocked=false;stopScanner()}render()}
 function shift(days){const d=new Date(st.date+"T00:00:00");d.setDate(d.getDate()+days);st.date=fmt(d);if(firebaseOn)listenReservations();render()}
 function quick(n){const d=new Date();d.setDate(d.getDate()+n);st.date=fmt(d);if(firebaseOn)listenReservations();render()}
 function activeQuick(n){const d=new Date();d.setDate(d.getDate()+n);return st.date===fmt(d)?"active":""}
-function menu(date){if(st.menus[date])return st.menus[date];const n=new Date(date+"T00:00:00").getDate();return{date,main:"한식 백반",menu:SAMPLE[n%SAMPLE.length],note:""}}
+function menu(date){if(st.menus[date])return st.menus[date];const n=new Date(date+"T00:00:00").getDate();return{date,main:"",menu:SAMPLE[n%SAMPLE.length],note:""}}
 function byDate(date){return st.reservations.filter(r=>r.date===date&&r.status!=="cancelled")}
 function counts(date){const c={};SLOTS.forEach(s=>c[s[0]]=0);byDate(date).forEach(r=>{if(c[r.time]!==undefined)c[r.time]++});return c}
 function remain(date,time){const cap=SLOTS.find(s=>s[0]===time)[1];return Math.max(0,cap-(counts(date)[time]||0))}
@@ -192,6 +413,23 @@ function latest(){if(!st.user)return null;return st.reservations.filter(r=>r.emp
 function code(date,time,emp){return"SGMEAL|"+date+"|"+time+"|"+emp}
 function docId(date,emp){return date+"_"+emp}
 function slotId(date,time){return date+"_"+time.replace(":","")}
+
+function todayDate(){return fmt(new Date());}
+function nextDate(date){
+  const d=new Date(date+"T00:00:00");
+  d.setDate(d.getDate()+1);
+  return fmt(d);
+}
+function isBlocked(emp,date=todayDate()){
+  const p=st.penalties && st.penalties[emp];
+  return !!(p && p.blockDate===date);
+}
+function blockMessage(emp,date=todayDate()){
+  const p=st.penalties && st.penalties[emp];
+  if(!p) return "";
+  return `전일 노쇼 이력으로 ${pretty(p.blockDate)} 예약이 제한됩니다.`;
+}
+
 function selectSlot(time){st.slot=time;render()}
 function render(){document.getElementById("content").innerHTML=views[st.tab]();document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));document.getElementById("nav-"+st.tab).classList.add("active");updateLoginState();setModeBadge();setTimeout(drawQr,0)}
 function drawQr(){const box=document.getElementById("qrBox"),r=latest();if(!box||!r||typeof QRCode==="undefined")return;box.innerHTML="";new QRCode(box,{text:r.code,width:140,height:140,correctLevel:QRCode.CorrectLevel.H})}
@@ -219,30 +457,50 @@ function listenNotices(){
   },err=>{console.error(err);toast("공지사항을 불러오지 못했습니다.");});
 }
 
+
+function listenPenalties(){
+  if(!firebaseOn||!db)return;
+  if(unsubPenalties)unsubPenalties();
+  unsubPenalties=db.collection("penalties").onSnapshot(snap=>{
+    const out={};
+    snap.forEach(d=>out[d.id]=d.data());
+    st.penalties=out;
+    render();
+  },err=>{console.error(err);toast("노쇼 제한 데이터를 불러오지 못했습니다.");});
+}
+
 async function reserve(){
   if(!st.user){updateLoginState();return toast("먼저 직원 정보를 등록해주세요.")}
+  const bookingDate=todayDate();
+  if(isBlocked(st.user.emp,bookingDate)) return toast(blockMessage(st.user.emp,bookingDate));
+  st.date=bookingDate;
   if(firebaseOn) return reserveFirebase();
-  if(myOnDate(st.date)){go("my");return toast("이미 이 날짜 예약이 있습니다.")}
-  if(remain(st.date,st.slot)<=0)return toast("선택한 시간은 마감되었습니다.")
-  const m=menu(st.date);st.reservations.push({id:docId(st.date,st.user.emp),name:st.user.name,dept:st.user.dept,emp:st.user.emp,date:st.date,time:st.slot,meal:"중식",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:"reserved",code:code(st.date,st.slot,st.user.emp),createdAt:Date.now()});saveLocal();go("my");toast("예약이 완료되었습니다.")
+  if(myOnDate(bookingDate)){go("my");return toast("이미 오늘 예약이 있습니다.")}
+  if(remain(bookingDate,st.slot)<=0)return toast("선택한 시간은 마감되었습니다.")
+  const m=menu(bookingDate);
+  st.reservations.push({id:docId(bookingDate,st.user.emp),name:st.user.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:"reserved",code:code(bookingDate,st.slot,st.user.emp),createdAt:Date.now()});
+  saveLocal();go("my");toast("예약이 완료되었습니다.")
 }
 async function reserveFirebase(){
-  const rRef=db.collection("reservations").doc(docId(st.date,st.user.emp));
-  const sRef=db.collection("slotCounts").doc(slotId(st.date,st.slot));
-  const m=menu(st.date);
+  const bookingDate=todayDate();
+  const rRef=db.collection("reservations").doc(docId(bookingDate,st.user.emp));
+  const sRef=db.collection("slotCounts").doc(slotId(bookingDate,st.slot));
+  const m=menu(bookingDate);
   try{
     await db.runTransaction(async tx=>{
       const rSnap=await tx.get(rRef);
       if(rSnap.exists&&rSnap.data().status!=="cancelled") throw new Error("EXISTS");
+      const pSnap=await tx.get(db.collection("penalties").doc(st.user.emp));
+      if(pSnap.exists&&pSnap.data().blockDate===bookingDate) throw new Error("BLOCKED");
       const sSnap=await tx.get(sRef);
       const cap=SLOTS.find(s=>s[0]===st.slot)[1];
       const count=sSnap.exists?(sSnap.data().count||0):0;
       if(count>=cap) throw new Error("FULL");
-      tx.set(sRef,{date:st.date,time:st.slot,cap,count:count+1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-      tx.set(rRef,{name:st.user.name,dept:st.user.dept,emp:st.user.emp,date:st.date,time:st.slot,meal:"중식",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:"reserved",code:code(st.date,st.slot,st.user.emp),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      tx.set(sRef,{date:bookingDate,time:st.slot,cap,count:count+1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      tx.set(rRef,{name:st.user.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:"reserved",code:code(bookingDate,st.slot,st.user.emp),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     });
     go("my");toast("예약이 완료되었습니다.");
-  }catch(e){console.error(e);if(String(e.message).includes("EXISTS"))toast("이미 이 날짜 예약이 있습니다.");else if(String(e.message).includes("FULL"))toast("선택한 시간은 마감되었습니다.");else toast("예약 처리 중 오류가 발생했습니다.")}
+  }catch(e){console.error(e);if(String(e.message).includes("EXISTS"))toast("이미 오늘 예약이 있습니다.");else if(String(e.message).includes("BLOCKED"))toast("노쇼 이력으로 오늘 예약이 제한됩니다.");else if(String(e.message).includes("FULL"))toast("선택한 시간은 마감되었습니다.");else toast("예약 처리 중 오류가 발생했습니다.")}
 }
 async function cancelRes(idv){
   if(firebaseOn)return cancelFirebase(idv);
@@ -262,6 +520,35 @@ async function cancelFirebase(idv){
     toast("예약이 취소되었습니다.");
   }catch(e){console.error(e);toast(String(e.message).includes("CHECKED")?"이미 입장 처리된 예약입니다.":"예약 취소 중 오류가 발생했습니다.")}
 }
+
+async function markNoShow(idv){
+  if(firebaseOn)return markNoShowFirebase(idv);
+  const r=st.reservations.find(x=>x.id===idv);
+  if(!r)return;
+  if(r.status==="checkedin")return toast("이미 입장 처리된 예약입니다.");
+  r.status="noshow";
+  st.penalties[r.emp]={emp:r.emp,name:r.name,dept:r.dept,blockDate:nextDate(r.date),sourceDate:r.date,createdAtMs:Date.now()};
+  saveLocal();render();toast(`${r.name}님 노쇼 처리: 다음날 예약이 제한됩니다.`);
+}
+async function markNoShowFirebase(idv){
+  try{
+    const rRef=db.collection("reservations").doc(idv);
+    await db.runTransaction(async tx=>{
+      const snap=await tx.get(rRef);
+      if(!snap.exists)throw new Error("NO");
+      const r=snap.data();
+      if(r.status==="checkedin")throw new Error("CHECKED");
+      const sRef=db.collection("slotCounts").doc(slotId(r.date,r.time));
+      const sSnap=await tx.get(sRef);
+      const count=sSnap.exists?(sSnap.data().count||0):0;
+      tx.update(rRef,{status:"noshow",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      tx.set(sRef,{count:Math.max(0,count-1),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      tx.set(db.collection("penalties").doc(r.emp),{emp:r.emp,name:r.name,dept:r.dept,blockDate:nextDate(r.date),sourceDate:r.date,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+    });
+    toast("노쇼 처리되었습니다. 다음날 예약이 제한됩니다.");
+  }catch(e){console.error(e);toast(String(e.message).includes("CHECKED")?"이미 입장 처리된 예약입니다.":"노쇼 처리 중 오류가 발생했습니다.")}
+}
+
 async function checkin(idv){
   if(firebaseOn){try{await db.collection("reservations").doc(idv).update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});toast("입장 처리 완료")}catch(e){console.error(e);toast("입장 처리 중 오류가 발생했습니다.")}return;}
   const r=st.reservations.find(x=>x.id===idv);if(!r)return;if(r.status==="checkedin")return toast("이미 입장 처리되었습니다.");r.status="checkedin";saveLocal();render();toast("입장 처리 완료")
@@ -274,25 +561,60 @@ async function checkinByCode(text){
     const snap=await ref.get();
     if(!snap.exists)return"예약 정보를 찾지 못했습니다.";
     const r=snap.data();
+    if(r.status==="noshow")return `${r.name}님은 노쇼 처리된 예약입니다. 다음날 예약 제한 대상입니다.`;
     if(r.status==="checkedin")return `${r.name}님은 이미 입장 처리되었습니다.`;
+    if(st.penalties[r.emp]&&st.penalties[r.emp].blockDate===r.date)return `${r.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;
     await ref.update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     return `${r.name}님 입장 처리 완료: ${r.time}`;
   }
   const found=st.reservations.find(r=>r.code===text)||(parts.length>=4?st.reservations.find(r=>r.date===parts[1]&&r.time===parts[2]&&r.emp===parts[3]&&r.status!=="cancelled"):null);
-  if(!found)return"예약 정보를 찾지 못했습니다.";if(found.status==="checkedin")return `${found.name}님은 이미 입장 처리되었습니다.`;found.status="checkedin";saveLocal();render();return `${found.name}님 입장 처리 완료: ${found.time}`;
+  if(!found)return"예약 정보를 찾지 못했습니다.";if(found.status==="noshow")return `${found.name}님은 노쇼 처리된 예약입니다. 다음날 예약 제한 대상입니다.`;if(found.status==="checkedin")return `${found.name}님은 이미 입장 처리되었습니다.`;if(st.penalties[found.emp]&&st.penalties[found.emp].blockDate===found.date)return `${found.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;found.status="checkedin";saveLocal();render();return `${found.name}님 입장 처리 완료: ${found.time}`;
 }
+
+
+function cleanMain(main){return String(main||"").trim();}
+function menuItems(menuText){return String(menuText||"").split(/,|\n/).map(v=>v.trim()).filter(Boolean);}
+function menuPreview(menuText,count=3){const items=menuItems(menuText);return items.slice(0,count).join(", ")+(items.length>count?" 외":"");}
 
 function plateSVG(){return `<svg width="76" height="76" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="7" y="12" width="62" height="50" rx="16" fill="#F4E7BD"/><rect x="13" y="18" width="50" height="38" rx="12" fill="#FBF6E6"/><circle cx="27" cy="31" r="8" fill="#E6E9F3"/><circle cx="47" cy="31" r="9" fill="#D7D3F4"/><circle cx="27" cy="47" r="8.5" fill="#74D8A9"/><circle cx="47" cy="47" r="9" fill="#F4C944"/><path d="M61 19C63.5 24.5 63.5 49.5 61 55" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M15 19V55" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M11 23H19" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M11 30H19" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M11 37H19" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/></svg>`}
 function homeNoticeList(){const items=[...st.notices].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0)).slice(0,3);if(!items.length)return `<div class="tiny">등록된 공지사항이 없습니다.</div>`;return items.map(n=>`<div class="notice-item"><div class="notice-tag">${esc(n.type||"공지")}</div><div style="font-weight:900;margin-bottom:4px">${esc(n.title)}</div><div class="notice-text">${esc(n.body)}</div></div>`).join("")}
-function historyView(){const list=st.reservations.filter(r=>st.user&&r.emp===st.user.emp).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));return `<div class="card"><div class="row"><div class="title" style="margin:0">예약 내역</div><button class="btn light small" onclick="toggleHistory()">닫기</button></div><div class="line"></div>${list.map(r=>`<div class="reservation-item"><div class="row"><div><div style="font-weight:900">${pretty(r.date)} ${esc(r.time)}</div><div class="sub">${esc(r.place)} · ${esc(r.main)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="cancelled"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="cancelled"?"취소":"예약"}</span></div></div>`).join("")}</div>`}
+function historyView(){const list=st.reservations.filter(r=>st.user&&r.emp===st.user.emp).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));return `<div class="card"><div class="row"><div class="title" style="margin:0">예약 내역</div><button class="btn light small" onclick="toggleHistory()">닫기</button></div><div class="line"></div>${list.map(r=>`<div class="reservation-item"><div class="row"><div><div style="font-weight:900">${pretty(r.date)} ${esc(r.time)}</div><div class="sub">${esc(r.place)} · ${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="cancelled"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="cancelled"?"취소":"예약"}</span></div></div>`).join("")}</div>`}
 function adminView(){return `<div class="card"><div class="row"><div><div class="title">관리자 모드</div><div class="sub">기능별 탭으로 구분하여 관리할 수 있습니다.</div></div><button class="btn light small" onclick="closeAdmin()">닫기</button></div><div class="line"></div><div class="admin-tabs"><button class="${st.adminTab==="camera"?"active":""}" onclick="setAdminTab('camera')">카메라</button><button class="${st.adminTab==="menu"?"active":""}" onclick="setAdminTab('menu')">메뉴업로드</button><button class="${st.adminTab==="reservations"?"active":""}" onclick="setAdminTab('reservations')">예약자목록</button><button class="${st.adminTab==="notice"?"active":""}" onclick="setAdminTab('notice')">공지사항</button></div>${adminPanel()}</div>`}
 function adminPanel(){if(st.adminTab==="camera")return cameraPanel();if(st.adminTab==="menu")return menuPanel();if(st.adminTab==="reservations")return reservationPanel();return noticePanel()}
 function cameraPanel(){return `<div><div class="title" style="font-size:16px">QR 체크인 카메라</div><div class="sub">카메라를 켜면 QR 코드를 인식하여 예약자를 자동으로 입장 처리합니다.</div><div class="btnrow"><button class="btn primary full" onclick="startScanner()">카메라 켜기</button></div><div id="scannerArea"></div></div>`}
 function menuPanel(){return `<div><div class="row"><div><div class="title" style="font-size:16px">한 달 메뉴 업로드</div><div class="sub">CSV 양식으로 업로드하면 모든 화면에 반영됩니다.</div></div><button class="btn light small" onclick="downloadTemplate()">양식</button></div><div class="line"></div><input class="file" type="file" accept=".csv,text/csv" onchange="uploadMenu(event)"><div class="notice">권장 열 이름: date, main, menu, note</div></div>`}
-function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약 현황입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}</span><b>${c[s[0]]||0} / ${s[1]}</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.dept)}</div><div class="sub">${esc(r.time)} · 직원번호 ${esc(r.emp)} · ${esc(r.code)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":"reserve"}">${r.status==="checkedin"?"입장완료":"예약"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
+function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약 현황입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}</span><b>${c[s[0]]||0} / ${s[1]}</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.dept)}</div><div class="sub">${esc(r.time)} · 직원번호 ${esc(r.emp)} · ${esc(r.code)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":"예약"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
 function noticePanel(){const list=[...st.notices].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));return `<div><div class="title" style="font-size:16px">공지사항 · 버전업 관리</div><div class="sub">메인 대시보드에 공지와 업데이트 내용을 노출합니다.</div><div class="line"></div><div class="mini-card" style="margin-bottom:12px"><div class="form"><select id="noticeType" class="select"><option>공지</option><option>업데이트</option><option>점검</option><option>안내</option></select><input id="noticeTitle" class="input" placeholder="제목"><textarea id="noticeBody" placeholder="공지 내용 또는 업데이트 내용을 입력해주세요."></textarea><button class="btn primary full" onclick="addNotice()">공지 등록</button></div></div>${list.length?list.map(n=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><span class="notice-tag">${esc(n.type)}</span><div style="font-weight:900;margin-bottom:4px">${esc(n.title)}</div><div class="sub">${esc(n.body)}</div></div><button class="btn danger small" onclick="removeNotice('${n.id}')">삭제</button></div></div>`).join(""):`<div class="mini-card">등록된 공지사항이 없습니다.</div>`}</div>`}
 
-function openMenuDetail(){const m=menu(st.date);openModal(pretty(st.date)+" 점심 메뉴",`<div class="mini-card"><div style="font-weight:900;font-size:17px">${esc(m.main)}</div><ul class="menu-list" style="margin-top:10px">${String(m.menu||"").split(/,|\n/).filter(Boolean).map(v=>`<li>${esc(v.trim())}</li>`).join("")}</ul>${m.note?`<div class="notice">${esc(m.note)}</div>`:""}</div>`)}
+
+function toggleMenuCalendar(){st.menuCalendarOpen=!st.menuCalendarOpen;render();}
+function setMenuPreviewDate(date){st.menuPreviewDate=date;st.menuCalendarOpen=false;render();}
+function moveMenuMonth(delta){
+  const base=new Date((st.menuPreviewDate||todayDate())+"T00:00:00");
+  base.setMonth(base.getMonth()+delta);
+  st.menuPreviewDate=fmt(base);
+  render();
+}
+function calendarDropdown(selectedDate){
+  const base=new Date(selectedDate+"T00:00:00");
+  const y=base.getFullYear();
+  const m=base.getMonth();
+  const first=new Date(y,m,1);
+  const start=new Date(first);
+  start.setDate(first.getDate()-first.getDay());
+  const weekdays=["일","월","화","수","목","금","토"];
+  let cells=weekdays.map(w=>`<div class="calendar-weekday">${w}</div>`).join("");
+  for(let i=0;i<42;i++){
+    const d=new Date(start);
+    d.setDate(start.getDate()+i);
+    const ds=fmt(d);
+    const cls=[d.getMonth()!==m?"muted":"",ds===selectedDate?"active":""].filter(Boolean).join(" ");
+    cells+=`<button class="calendar-day ${cls}" onclick="setMenuPreviewDate('${ds}')">${d.getDate()}</button>`;
+  }
+  return `<div class="calendar-pop"><div class="calendar-head"><button class="btn light small" onclick="moveMenuMonth(-1)">이전달</button><strong>${y}년 ${m+1}월</strong><button class="btn light small" onclick="moveMenuMonth(1)">다음달</button></div><div class="calendar-grid">${cells}</div></div>`;
+}
+
+function openMenuDetail(){const m=menu(st.date);openModal(pretty(st.date)+" 점심 메뉴",`<div class="mini-card"><div style="font-weight:900;font-size:17px">${cleanMain(m.main)?esc(m.main):"오늘의 점심 메뉴"}</div><ul class="menu-list" style="margin-top:10px">${String(m.menu||"").split(/,|\n/).filter(Boolean).map(v=>`<li>${esc(v.trim())}</li>`).join("")}</ul>${m.note?`<div class="notice">${esc(m.note)}</div>`:""}</div>`)}
 function openModal(title,html){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("show")}
 function closeModal(){document.getElementById("modal").classList.remove("show")}
 function rules(){openModal("이용수칙",`<ul class="menu-list"><li>입장 예정시각 전후 10분 내 입장을 권장합니다.</li><li>예약 후 미입장 시 노쇼로 누적될 수 있습니다.</li><li>식당 혼잡 완화를 위해 예약 시간 분산에 협조해주시기 바랍니다.</li></ul>`)}
@@ -309,15 +631,15 @@ async function removeNotice(idv){if(firebaseOn){try{await db.collection("notices
 function csv(rows){return "\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n")}
 function download(name,text){const blob=new Blob([text],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
 function exportCsv(){const rows=[["날짜","입장시각","이름","부서","직원번호","상태","메인","메뉴","예약번호"]];st.reservations.filter(r=>r.date===st.date).forEach(r=>rows.push([r.date,r.time,r.name,r.dept,r.emp,r.status,r.main,r.menu,r.code]));download("서구밥상_"+st.date+".csv",csv(rows));toast("CSV를 다운로드했습니다.")}
-function downloadTemplate(){const y=new Date().getFullYear(),m=String(new Date().getMonth()+1).padStart(2,"0"),rows=[["date","main","menu","note"]];for(let d=1;d<=31;d++)rows.push([`${y}-${m}-${String(d).padStart(2,"0")}`,"한식 백반","잡곡밥, 된장국, 제육볶음, 시금치무침, 김치",""]);download("서구밥상_메뉴업로드_양식.csv",csv(rows));toast("메뉴 양식을 내려받았습니다.")}
+function downloadTemplate(){const y=new Date().getFullYear(),m=String(new Date().getMonth()+1).padStart(2,"0"),rows=[["date","main","menu","note"]];for(let d=1;d<=31;d++)rows.push([`${y}-${m}-${String(d).padStart(2,"0")}`,"","잡곡밥, 된장국, 제육볶음, 시금치무침, 김치",""]);download("서구밥상_메뉴업로드_양식.csv",csv(rows));toast("메뉴 양식을 내려받았습니다.")}
 function parseCSV(text){text=text.replace(/^\uFEFF/,"");let rows=[],row=[],cell="",quote=false;for(let i=0;i<text.length;i++){const ch=text[i],nx=text[i+1];if(ch==='"'){if(quote&&nx==='"'){cell+='"';i++}else quote=!quote}else if(ch===','&&!quote){row.push(cell.trim());cell=""}else if((ch==='\n'||ch==='\r')&&!quote){if(ch==='\r'&&nx==='\n')i++;row.push(cell.trim());if(row.some(v=>v))rows.push(row);row=[];cell=""}else cell+=ch}row.push(cell.trim());if(row.some(v=>v))rows.push(row);return rows}
 function normDate(v){const m=String(v||"").trim().match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);return m?`${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`:""}
-async function uploadMenu(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=async()=>{try{const rows=parseCSV(String(reader.result||"")),header=rows[0].map(v=>String(v).toLowerCase()),di=header.indexOf("date"),mi=header.indexOf("main"),ui=header.indexOf("menu"),ni=header.indexOf("note");if(di<0||ui<0)throw new Error("bad");let count=0;if(firebaseOn){const batch=db.batch();for(let i=1;i<rows.length;i++){const d=normDate(rows[i][di]),menuText=(rows[i][ui]||"").trim();if(!d||!menuText)continue;const item={date:d,main:(mi>=0?rows[i][mi]:"")||"한식 백반",menu:menuText,note:(ni>=0?rows[i][ni]:"")||""};batch.set(db.collection("menus").doc(d),item,{merge:true});count++}await batch.commit()}else{for(let i=1;i<rows.length;i++){const d=normDate(rows[i][di]),menuText=(rows[i][ui]||"").trim();if(!d||!menuText)continue;st.menus[d]={date:d,main:(mi>=0?rows[i][mi]:"")||"한식 백반",menu:menuText,note:(ni>=0?rows[i][ni]:"")||""};count++}saveLocal();render()}toast(`${count}일치 메뉴가 반영되었습니다.`)}catch(err){console.error(err);toast("메뉴 파일 형식을 확인해주세요.")}e.target.value=""};reader.readAsText(file,"utf-8")}
+async function uploadMenu(e){const file=e.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=async()=>{try{const rows=parseCSV(String(reader.result||"")),header=rows[0].map(v=>String(v).toLowerCase()),di=header.indexOf("date"),mi=header.indexOf("main"),ui=header.indexOf("menu"),ni=header.indexOf("note");if(di<0||ui<0)throw new Error("bad");let count=0;if(firebaseOn){const batch=db.batch();for(let i=1;i<rows.length;i++){const d=normDate(rows[i][di]),menuText=(rows[i][ui]||"").trim();if(!d||!menuText)continue;const item={date:d,main:(mi>=0?rows[i][mi]:"")||"",menu:menuText,note:(ni>=0?rows[i][ni]:"")||""};batch.set(db.collection("menus").doc(d),item,{merge:true});count++}await batch.commit()}else{for(let i=1;i<rows.length;i++){const d=normDate(rows[i][di]),menuText=(rows[i][ui]||"").trim();if(!d||!menuText)continue;st.menus[d]={date:d,main:(mi>=0?rows[i][mi]:"")||"",menu:menuText,note:(ni>=0?rows[i][ni]:"")||""};count++}saveLocal();render()}toast(`${count}일치 메뉴가 반영되었습니다.`)}catch(err){console.error(err);toast("메뉴 파일 형식을 확인해주세요.")}e.target.value=""};reader.readAsText(file,"utf-8")}
 
 async function startScanner(){if(typeof jsQR==="undefined")return toast("QR 스캐너 라이브러리를 불러오지 못했습니다.");const area=document.getElementById("scannerArea");if(!area)return;area.innerHTML=`<div class="cameraBox"><video id="qrVideo" playsinline muted></video></div><div id="scanResult" class="scanResult">카메라 권한을 허용해주세요. QR이 인식되면 자동으로 입장 처리됩니다.</div><div class="btnrow"><button class="btn light full" onclick="stopScanner()">카메라 끄기</button></div><canvas id="qrCanvas" style="display:none"></canvas>`;try{st.scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});const video=document.getElementById("qrVideo");video.srcObject=st.scanStream;await video.play();scanLoop()}catch(err){console.error(err);document.getElementById("scanResult").textContent="카메라를 실행할 수 없습니다. 브라우저 권한과 HTTPS 환경을 확인해주세요."}}
 async function scanLoop(){const video=document.getElementById("qrVideo"),canvas=document.getElementById("qrCanvas"),result=document.getElementById("scanResult");if(!video||!canvas||!st.scanStream)return;const ctx=canvas.getContext("2d");if(video.readyState===video.HAVE_ENOUGH_DATA){canvas.width=video.videoWidth;canvas.height=video.videoHeight;ctx.drawImage(video,0,0,canvas.width,canvas.height);const img=ctx.getImageData(0,0,canvas.width,canvas.height);const found=jsQR(img.data,canvas.width,canvas.height);if(found&&found.data){const msg=await checkinByCode(found.data);if(result)result.textContent=msg;stopScanner(false);toast(msg);return}}st.scanTimer=requestAnimationFrame(scanLoop)}
 function stopScanner(clear=true){if(st.scanTimer){cancelAnimationFrame(st.scanTimer);st.scanTimer=null}if(st.scanStream){st.scanStream.getTracks().forEach(t=>t.stop());st.scanStream=null}if(clear){const area=document.getElementById("scannerArea");if(area)area.innerHTML=""}}
-function resetLocal(){if(!confirm("로컬 데모 데이터를 초기화할까요?"))return;localStorage.removeItem("sg_real_reservations");localStorage.removeItem("sg_real_menus");localStorage.removeItem("sg_real_notices");localStorage.removeItem("sg_real_seeded");st.reservations=[];st.menus={};st.notices=[];seedLocalIfNeeded();render();toast("로컬 데이터가 초기화되었습니다.")}
+function resetLocal(){if(!confirm("로컬 데모 데이터를 초기화할까요?"))return;localStorage.removeItem("sg_real_reservations");localStorage.removeItem("sg_real_menus");localStorage.removeItem("sg_real_notices");localStorage.removeItem("sg_real_penalties");localStorage.removeItem("sg_real_seeded");st.reservations=[];st.menus={};st.notices=[];st.penalties={};seedLocalIfNeeded();render();toast("로컬 데이터가 초기화되었습니다.")}
 function seedLocalIfNeeded(){if(localStorage.getItem("sg_real_seeded"))return;const today=fmt(new Date());st.notices=[{id:"n1",type:"공지",title:"시범 운영 안내",body:"서구밥상 시범 운영 중입니다. 예약 시간 분산에 협조해주시기 바랍니다.",createdAtMs:Date.now()},{id:"n2",type:"업데이트",title:"QR 체크인 준비",body:"관리자 화면에서 QR 카메라 인식 기능을 점검할 수 있습니다.",createdAtMs:Date.now()-1000}];saveLocal();localStorage.setItem("sg_real_seeded","1")}
 </script>
 </body>
