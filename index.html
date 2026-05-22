@@ -289,6 +289,9 @@ const firebaseConfig = {
 };
 
 const SLOTS=[["11:30",75],["11:45",70],["12:00",65],["12:15",50],["12:30",40]];
+// 베타 테스트용: true면 10:30 이후에도 예약 가능 + QR 생성 가능
+// 실제 운영 전에는 false로 바꾸면 기존 마감 로직이 다시 살아납니다.
+const BETA_ALLOW_AFTER_DEADLINE = true;
 const SAMPLE=["제육볶음, 시금치무침, 김치, 된장국, 잡곡밥","돈까스, 양배추샐러드, 김치, 미소국, 흰쌀밥","닭갈비, 콩나물무침, 깍두기, 맑은국, 잡곡밥","카레라이스, 미니우동, 단무지, 샐러드","불고기볶음, 오이무침, 김치, 북어국, 잡곡밥"];
 
 let db=null;
@@ -370,7 +373,7 @@ const views={
       <div class="slots">${SLOTS.map(s=>{const rem=remain(bookingDate,s[0]),stt=status(rem,s[1]);return `<button class="slot ${st.slot===s[0]?"active":""} ${rem<=0||blocked?"disabled":""}" onclick="selectSlot('${s[0]}')"><div class="time">${s[0]}</div><div class="meta">잔여 ${rem}명 / 정원 ${s[1]}명</div><div class="status ${stt[1]}">${stt[0]}</div></button>`}).join("")}</div>
       <div class="noshow-warning"><div style="font-weight:900;margin-bottom:6px">예약 이용 안내</div>
 <ul class="menu-list" style="padding-left:16px">
-  <li>예약은 오전 10시 30분에 마감됩니다.</li>
+  <li>${BETA_ALLOW_AFTER_DEADLINE?"베타 테스트 중에는 10시 30분 이후에도 예약 및 QR 생성이 가능합니다.":"예약은 오전 10시 30분에 마감됩니다."}</li>
   <li>예약 후 입장하지 않으면 관리자 화면에서 노쇼로 표시됩니다.</li>
   <li>노쇼 처리 시 다음날 예약이 제한됩니다.</li>
 </ul></div>
@@ -502,6 +505,7 @@ function lateReservationNotice(){
 }
 
 function reservationDeadlinePassed(){
+  if(BETA_ALLOW_AFTER_DEADLINE) return false;
   const now=new Date();
   const deadline=new Date();
   deadline.setHours(10,30,0,0);
@@ -549,24 +553,75 @@ async function reserveFirebase(){
   }catch(e){console.error(e);if(String(e.message).includes("EXISTS"))toast("이미 오늘 예약이 있습니다.");else if(String(e.message).includes("BLOCKED"))toast("노쇼 이력으로 오늘 예약이 제한됩니다.");else if(String(e.message).includes("FULL"))toast("선택한 시간은 마감되었습니다.");else toast("예약 처리 중 오류가 발생했습니다.")}
 }
 async function cancelRes(idv){
-  if(firebaseOn)return cancelFirebase(idv);
-  const r=st.reservations.find(x=>x.id===idv);if(!r)return;if(r.status==="checkedin")return toast("이미 입장 처리된 예약입니다.");r.status="cancelled";saveLocal();render();toast("예약이 취소되었습니다.")
+  if(!idv) return toast("취소할 예약 정보를 찾지 못했습니다.");
+  if(firebaseOn) return cancelFirebase(idv);
+
+  const r=st.reservations.find(x=>x.id===idv);
+  if(!r) return toast("예약 정보를 찾지 못했습니다.");
+  if(r.status==="checkedin") return toast("이미 입장 처리된 예약입니다.");
+  if(r.status==="cancelled") return toast("이미 취소된 예약입니다.");
+
+  r.status="cancelled";
+  r.updatedAt=Date.now();
+  saveLocal();
+  render();
+  toast("예약이 취소되었습니다.");
 }
 async function cancelFirebase(idv){
+  if(!idv) return toast("취소할 예약 정보를 찾지 못했습니다.");
   const rRef=db.collection("reservations").doc(idv);
+
   try{
     await db.runTransaction(async tx=>{
-      const rSnap=await tx.get(rRef);if(!rSnap.exists)throw new Error("NO");
-      const r=rSnap.data();if(r.status==="checkedin")throw new Error("CHECKED");
-      const sRef=db.collection("slotCounts").doc(slotId(r.date,r.time));
-      tx.update(rRef,{status:"cancelled",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-      if(!isLateReservationStatus(r.status)){
-        const sSnap=await tx.get(sRef);const count=sSnap.exists?(sSnap.data().count||0):0;
-        tx.set(sRef,{count:Math.max(0,count-1),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+      // Firestore 트랜잭션은 읽기를 먼저 모두 끝낸 뒤 쓰기를 해야 합니다.
+      const rSnap=await tx.get(rRef);
+      if(!rSnap.exists) throw new Error("NO");
+
+      const r=rSnap.data();
+      if(r.status==="checkedin") throw new Error("CHECKED");
+      if(r.status==="cancelled") throw new Error("ALREADY_CANCELLED");
+
+      const shouldDecreaseSlotCount =
+        r.status==="reserved" &&
+        r.qrEligible!==false &&
+        r.date &&
+        r.time;
+
+      let sRef=null;
+      let newCount=null;
+
+      // slotCounts도 update 전에 먼저 읽어둡니다.
+      if(shouldDecreaseSlotCount){
+        sRef=db.collection("slotCounts").doc(slotId(r.date,r.time));
+        const sSnap=await tx.get(sRef);
+        const count=sSnap.exists?(sSnap.data().count||0):0;
+        newCount=Math.max(0,count-1);
+      }
+
+      tx.update(rRef,{
+        status:"cancelled",
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      if(sRef){
+        tx.set(sRef,{
+          count:newCount,
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        },{merge:true});
       }
     });
+
+    st.reservations = st.reservations.map(r => r.id===idv ? {...r,status:"cancelled"} : r);
+    render();
     toast("예약이 취소되었습니다.");
-  }catch(e){console.error(e);toast(String(e.message).includes("CHECKED")?"이미 입장 처리된 예약입니다.":"예약 취소 중 오류가 발생했습니다.")}
+  }catch(e){
+    console.error(e);
+    const msg=String(e.message||"");
+    if(msg.includes("CHECKED")) toast("이미 입장 처리된 예약입니다.");
+    else if(msg.includes("ALREADY_CANCELLED")) toast("이미 취소된 예약입니다.");
+    else if(msg.includes("NO")) toast("예약 정보를 찾지 못했습니다.");
+    else toast("예약 취소 중 오류가 발생했습니다.");
+  }
 }
 
 async function markNoShow(idv){
