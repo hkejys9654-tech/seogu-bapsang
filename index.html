@@ -51,7 +51,7 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .nav button{border:0;background:transparent;border-radius:16px;padding:8px 4px;color:#6b7280;font-weight:800;cursor:pointer}.nav button.active{background:var(--soft);color:var(--orange)}.nav b{display:block;font-size:20px}
 .datebar{display:flex;gap:8px;margin:12px 0}.datebar .center{flex:1;background:#fff;border:1px solid var(--line);border-radius:16px;padding:11px;text-align:center;font-weight:900;cursor:pointer}
 .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.quick button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px;font-weight:900;cursor:pointer}.quick button.active{border-color:#ffd9bf;background:var(--soft);color:var(--orange)}
-.slots{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.slot{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px 12px;text-align:left;cursor:pointer}.slot.active{border-color:#ffcfab;background:var(--soft)}.slot.disabled{opacity:.45;pointer-events:none}
+.slots{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.slot{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px 12px;text-align:left;cursor:pointer}.slot.active,.slot.mine{border-color:#ffb77f;background:var(--soft);box-shadow:0 8px 18px rgba(255,122,33,.11)}.slot.disabled{opacity:.48;pointer-events:none}.slot-orgs{font-size:11px;color:#64748b;line-height:1.4;margin-top:6px}.slot.mine .slot-orgs{color:#c2410c;font-weight:800}.assignment-card{margin:14px 0;padding:14px;border-radius:18px;background:linear-gradient(135deg,#fff7ed,#fff);border:1px solid #fed7aa}.assignment-time{font-size:25px;font-weight:950;color:#ea580c;margin-top:4px}.assignment-org{font-size:13px;color:#7c2d12;font-weight:800;margin-top:3px}
 .time{font-size:18px;font-weight:900}.meta{font-size:12px;color:var(--muted)}.status{font-size:12px;font-weight:900;margin-top:8px}.good{color:var(--green)}.mid{color:var(--amber)}.bad{color:var(--red)}.gray{color:#6b7280}
 #qrBox{display:flex;justify-content:center;align-items:center;margin:16px auto;padding:14px;width:172px;min-height:172px;background:#fff;border-radius:22px;border:1px solid #ffe1c9}.code{padding:14px;border-radius:18px;background:#fff;border:1px dashed #f7b787;font-weight:900;font-size:14px;text-align:center;word-break:break-all}
 .pill{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:900;white-space:nowrap}.reserve{background:#fff7ed;color:#ea580c}.checkin{background:#ecfdf5;color:#047857}.cancel{background:#fef2f2;color:#dc2626}
@@ -266,9 +266,8 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
     <div class="sheetbody">
       <div class="form">
         <input id="name" class="input" placeholder="이름" />
-        <select id="dept" class="select">
-          <option value="">부서 선택</option><option>비서실</option><option>기획실</option><option>홍보실</option><option>감사담당관</option><option>주민자치과</option><option>공원녹지과</option><option>행복교육과</option><option>민원봉사과</option><option>문화예술과</option><option>민생경제과</option><option>시장산업과</option><option>체육관광과</option><option>도서관과</option><option>돌봄정책과</option><option>돌봄지원과</option><option>저출산고령사회정책과</option><option>장애인희망복지과</option><option>복지정책과</option><option>복지급여과</option><option>양성아동복지과</option><option>일자리청년지원과</option><option>자원순환과</option><option>기후환경과</option><option>교통행정과</option><option>교통지도과</option><option>안전총괄과</option><option>도시공간과</option><option>건설과</option><option>건축과</option><option>주택과</option><option>행정지원과</option><option>세무1과</option><option>세무2과</option><option>회계정보과</option><option>토지정보과</option><option>보건행정과</option><option>감염병관리과</option><option>건강증진과</option><option>보건위생과</option><option>건강생활지원센터</option><option>치매안심센터</option><option>의회사무국</option>
-        </select>
+        <select id="org" class="select" onchange="populateDeptSelect('org','dept')"><option value="">국·기관 선택</option></select>
+        <select id="dept" class="select" disabled><option value="">부서 선택</option></select>
         <input id="emp" class="input" placeholder="행정번호 끝 4자리" maxlength="4" inputmode="numeric" />
         <div class="tiny">직원 정보는 이 기기에 저장됩니다.</div>
         <button class="btn primary full" onclick="saveLogin()">시작하기</button>
@@ -289,6 +288,22 @@ const firebaseConfig = {
 };
 
 const SLOTS=[["11:30",75],["11:45",70],["12:00",65],["12:15",50],["12:30",40]];
+// 2026년 8월을 1회차로 하는 5개월 순환표입니다.
+// 두 순환 속도를 섞어 매월 각 시간대에 2개 그룹이 배정되고, 같은 조합이 고정되지 않게 합니다.
+const ROTATION_BASE_YEAR=2026;
+const ROTATION_BASE_MONTH=7;
+const ORG_GROUPS=[
+  {key:"living",name:"생활정부국",departments:["주민자치과","공원녹지과","행복교육과","민원봉사과"],base:0,step:1},
+  {key:"culture",name:"문화경제국",departments:["문화예술과","민생경제과","시장산업과","체육관광과","도서관과"],base:1,step:1},
+  {key:"care",name:"통합돌봄국",departments:["돌봄정책과","돌봄지원과","저출산고령사회정책과","장애인희망복지과"],base:2,step:1},
+  {key:"safety",name:"안전도시국",departments:["안전총괄과","도시공간과","건설과","건축과","주택과"],base:3,step:1},
+  {key:"health",name:"보건소",departments:["보건행정과","감염병관리과","건강증진과","보건위생과","건강생활지원센터","치매안심센터"],base:4,step:1},
+  {key:"planning",name:"기획·홍보·감사·비서",departments:["기획실","홍보실","감사담당관","비서실"],base:0,step:2},
+  {key:"welfare",name:"복지일자리국",departments:["복지정책과","복지급여과","양성아동복지과","일자리청년지원과"],base:1,step:2},
+  {key:"admin",name:"행정재정국",departments:["행정지원과","세무1과","세무2과","회계정보과","토지정보과"],base:2,step:2},
+  {key:"environment",name:"환경교통국",departments:["자원순환과","기후환경과","교통행정과","교통지도과"],base:3,step:2},
+  {key:"council",name:"의회사무국",departments:["의회사무국"],base:4,step:2}
+];
 // 베타 테스트용: true면 10:30 이후에도 예약 가능 + QR 생성 가능
 // 실제 운영 전에는 false로 바꾸면 기존 마감 로직이 다시 살아납니다.
 const BETA_ALLOW_AFTER_DEADLINE = true;
@@ -320,8 +335,8 @@ let st={
 };
 
 const views={
-  home(){const m=menu(st.date),total=byDate(st.date).length,max=SLOTS.reduce((a,b)=>a+b[1],0),p=Math.round(total/max*100);return `
-    <div class="card"><div class="row"><div><div style="font-weight:900">${st.user?esc(st.user.name):"직원"}님, 즐거운 점심시간 되세요!</div><div class="sub">${pretty(st.date)}</div></div><span class="badge">${myOnDate(st.date)?"예약 있음":"예약 가능"}</span></div></div>
+  home(){const m=menu(st.date),total=byDate(st.date).length,max=SLOTS.reduce((a,b)=>a+b[1],0),p=Math.round(total/max*100),org=userOrganization(),assigned=org?assignedSlot(org.key,todayDate()):"";return `
+    <div class="card"><div class="row"><div><div style="font-weight:900">${st.user?esc(st.user.name):"직원"}님, 즐거운 점심시간 되세요!</div><div class="sub">${pretty(st.date)}</div></div><span class="badge">${myOnDate(st.date)?"예약 있음":"예약 가능"}</span></div>${org?`<div class="assignment-card"><div class="tiny">이번 달 ${esc(org.name)} 배정시간</div><div class="assignment-time">${esc(assigned)}</div><div class="assignment-org">${esc(st.user.dept)} · 매월 자동 순환</div></div>`:""}</div>
     <div class="card dashboard-card">
       <div class="menu-kicker"><span class="menu-kicker-dot"></span><span>오늘의 점심</span></div>
       <h2 class="menu-main-title">${pretty(st.date)}</h2>
@@ -341,6 +356,9 @@ const views={
     const m=menu(previewDate);
     const blocked=st.user && isBlocked(st.user.emp, bookingDate);
     const deadlineClosed=reservationDeadlinePassed();
+    const org=userOrganization();
+    const assigned=org?assignedSlot(org.key,bookingDate):"";
+    if(assigned)st.slot=assigned;
     return `<div class="card menu-check-card">
       <div class="row" style="align-items:flex-start">
         <div>
@@ -359,8 +377,8 @@ const views={
     <div class="card reserve-focus-card">
       <div class="reserve-focus-head">
         <div>
-          <h2 class="reserve-focus-title">입장 예정시각 선택</h2>
-          <div class="sub">오늘 예약할 시간을 선택해주세요. 이 영역이 실제 예약 단계입니다.</div>
+          <h2 class="reserve-focus-title">국·기관별 배정시간</h2>
+          <div class="sub">소속 국·기관의 이번 달 입장시간만 예약할 수 있습니다.</div>
         </div>
         <div class="reserve-focus-badge">⏱</div>
       </div>
@@ -369,8 +387,9 @@ const views={
         <div class="reserve-info-cell"><span>구분</span><b>점심식사</b></div>
         <div class="reserve-info-cell"><span>마감</span><b>10:30</b></div>
       </div>
-      <div class="reserve-guide-text">원하는 입장 예정시각을 선택하면 아래 버튼으로 예약을 확정할 수 있습니다.</div>
-      <div class="slots">${SLOTS.map(s=>{const rem=remain(bookingDate,s[0]),stt=status(rem,s[1]);return `<button class="slot ${st.slot===s[0]?"active":""} ${rem<=0||blocked?"disabled":""}" onclick="selectSlot('${s[0]}')"><div class="time">${s[0]}</div><div class="meta">잔여 ${rem}명 / 정원 ${s[1]}명</div><div class="status ${stt[1]}">${stt[0]}</div></button>`}).join("")}</div>
+      ${org?`<div class="assignment-card"><div class="tiny">${esc(org.name)} · ${esc(st.user.dept)}</div><div class="assignment-time">${esc(assigned)}</div><div class="assignment-org">이번 달 자동 배정시간</div></div>`:`<div class="notice">국·기관과 부서 정보를 먼저 등록해주세요.</div>`}
+      <div class="reserve-guide-text">주황색 시간만 예약할 수 있습니다. 배정은 매월 자동으로 순환됩니다.</div>
+      <div class="slots">${SLOTS.map(s=>{const rem=remain(bookingDate,s[0]),stt=status(rem,s[1]),mine=s[0]===assigned,orgs=organizationsForSlot(bookingDate,s[0]);return `<button class="slot ${mine?"active mine":""} ${!mine||rem<=0||blocked?"disabled":""}" onclick="selectSlot('${s[0]}')"><div class="time">${s[0]}</div><div class="meta">잔여 ${rem}명 / 정원 ${s[1]}명</div><div class="slot-orgs">${orgs.map(v=>esc(v.name)).join(" · ")}</div><div class="status ${mine?stt[1]:"gray"}">${mine?"내 배정 · "+stt[0]:"다른 그룹 배정"}</div></button>`}).join("")}</div>
       <div class="noshow-warning"><div style="font-weight:900;margin-bottom:6px">예약 이용 안내</div>
 <ul class="menu-list" style="padding-left:16px">
   <li>${BETA_ALLOW_AFTER_DEADLINE?"베타 테스트 중에는 10시 30분 이후에도 예약 및 QR 생성이 가능합니다.":"예약은 오전 10시 30분에 마감됩니다."}</li>
@@ -378,15 +397,18 @@ const views={
   <li>노쇼 처리 시 다음날 예약이 제한됩니다.</li>
 </ul></div>
       ${blocked?`<div class="noshow-warning">예약 제한 대상입니다. ${blockMessage(st.user.emp,bookingDate)}</div>`:""}
-      <div class="btnrow"><button class="btn primary full" onclick="reserve()" ${blocked?"disabled":""}>예약 확정</button></div>
+      <div class="btnrow"><button class="btn primary full" onclick="reserve()" ${blocked||!assigned?"disabled":""}>${assigned?assigned+" 예약 확정":"소속 정보 확인 필요"}</button></div>
     </div>`},
   my(){const r=latest();if(!r)return `<div class="card" style="text-align:center;padding:30px"><div style="font-size:36px">🎫</div><p>아직 예약이 없습니다.</p><button class="btn primary" onclick="go('reserve')">예약하러 가기</button></div>`;return `<div class="card" style="background:linear-gradient(#fff,#fff6ef);border:1px solid #ffe1c9"><div class="row"><div><div class="title" style="margin-bottom:4px">내 예약</div><div class="sub">급식실 앞에서 QR 코드를 제시해주세요.</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"?"cancel":"reserve"}">${r.status==="checkedin"?"입장 완료":isLateReservationStatus(r.status)?"마감 후 예약":"예약 완료"}</span></div><div id="qrBox"></div>${isLateReservationStatus(r.status)||!r.code?``:`<div class="code">${esc(r.code)}</div>`}<div class="detail"><span>예약일시</span><b>${pretty(r.date)} ${esc(r.time)}</b></div><div class="detail"><span>예약 구분</span><b>${esc(r.meal||"점심식사")}</b></div><div class="detail"><span>식당</span><b>${esc(r.place)}</b></div><div class="detail"><span>위치</span><b>${esc(r.loc)}</b></div><div class="detail"><span>메뉴</span><b>${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</b></div><div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약취소</button><button class="btn soft full" onclick="toggleHistory()">내역보기</button></div></div>${st.showHistory?historyView():""}`},
-  more(){const userText=st.user?`${esc(st.user.name)} · ${esc(st.user.dept)} · ${esc(st.user.emp)}`:"미등록";return `<div class="card"><div class="title">더보기</div><div class="sub">설정과 관리자 기능을 여기에서 확인할 수 있습니다.</div><div class="line"></div><div class="mini-card"><div style="font-weight:900">내 정보</div><div class="sub" style="margin-top:6px">${userText}</div><div class="btnrow"><button class="btn light full" onclick="editUser()">정보수정</button><button class="btn light full" onclick="logout()">로그아웃</button></div></div><div class="btnrow"><button class="btn soft full" onclick="rules()">이용수칙</button><button class="btn soft full" onclick="allergy()">알레르기</button></div><div class="btnrow"><button class="btn light full" onclick="unlockAdmin()">관리자 모드</button><button class="btn light full" onclick="resetLocal()">로컬 초기화</button></div>${!firebaseOn?`<div class="notice">Firebase 연결에 실패하면 로컬 데모 데이터로 표시됩니다. GitHub Pages 주소에서 다시 확인해주세요.</div>`:""}</div>${st.adminUnlocked?adminView():""}`}
+  more(){const org=userOrganization(),userText=st.user?`${esc(st.user.name)} · ${org?esc(org.name)+" · ":""}${esc(st.user.dept)} · ${esc(st.user.emp)}`:"미등록";return `<div class="card"><div class="title">더보기</div><div class="sub">설정과 관리자 기능을 여기에서 확인할 수 있습니다.</div><div class="line"></div><div class="mini-card"><div style="font-weight:900">내 정보</div><div class="sub" style="margin-top:6px">${userText}</div><div class="btnrow"><button class="btn light full" onclick="editUser()">정보수정</button><button class="btn light full" onclick="logout()">로그아웃</button></div></div><div class="btnrow"><button class="btn soft full" onclick="rules()">이용수칙</button><button class="btn soft full" onclick="allergy()">알레르기</button></div><div class="btnrow"><button class="btn light full" onclick="unlockAdmin()">관리자 모드</button><button class="btn light full" onclick="resetLocal()">로컬 초기화</button></div>${!firebaseOn?`<div class="notice">Firebase 연결에 실패하면 로컬 데모 데이터로 표시됩니다. GitHub Pages 주소에서 다시 확인해주세요.</div>`:""}</div>${st.adminUnlocked?adminView():""}`}
 };
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init(){
+  migrateUserOrganization();
+  populateOrganizationSelect("org",st.user&&st.user.orgKey||"");
+  populateDeptSelect("org","dept",st.user&&st.user.dept||"");
   try{
     firebase.initializeApp(firebaseConfig);
     db=firebase.firestore();
@@ -414,7 +436,18 @@ function pretty(date){const d=new Date(date+"T00:00:00");return d.getFullYear()+
 function esc(str){return String(str||"").replace(/[&<>\"]/g,s=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[s]))}
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toastT);window.__toastT=setTimeout(()=>el.classList.remove("show"),1800)}
 function updateLoginState(){document.getElementById("login").classList.toggle("show",!st.user)}
-function saveLogin(){const name=document.getElementById("name").value.trim(),dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim();if(!name)return toast("이름을 입력해주세요.");if(!dept)return toast("부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,dept,emp};saveLocal();updateLoginState();render();toast("직원 정보가 저장되었습니다.")}
+function organizationByKey(key){return ORG_GROUPS.find(v=>v.key===key)||null}
+function organizationByDepartment(dept){return ORG_GROUPS.find(v=>v.departments.includes(dept))||null}
+function userOrganization(){return st.user?(organizationByKey(st.user.orgKey)||organizationByDepartment(st.user.dept)):null}
+function organizationOptions(selected=""){return `<option value="">국·기관 선택</option>`+ORG_GROUPS.map(v=>`<option value="${v.key}" ${v.key===selected?"selected":""}>${esc(v.name)}</option>`).join("")}
+function departmentOptions(orgKey,selected=""){const org=organizationByKey(orgKey);return `<option value="">부서 선택</option>`+(org?org.departments.map(v=>`<option ${v===selected?"selected":""}>${esc(v)}</option>`).join(""):"")}
+function populateOrganizationSelect(id,selected=""){const el=document.getElementById(id);if(el)el.innerHTML=organizationOptions(selected)}
+function populateDeptSelect(orgId,deptId,selected=""){const orgEl=document.getElementById(orgId),deptEl=document.getElementById(deptId);if(!orgEl||!deptEl)return;deptEl.innerHTML=departmentOptions(orgEl.value,selected);deptEl.disabled=!orgEl.value}
+function migrateUserOrganization(){if(!st.user)return;const org=organizationByKey(st.user.orgKey)||organizationByDepartment(st.user.dept);if(org&&st.user.orgKey!==org.key){st.user.orgKey=org.key;saveLocal()}}
+function rotationMonthIndex(date){const d=new Date(date+"T00:00:00"),raw=(d.getFullYear()-ROTATION_BASE_YEAR)*12+(d.getMonth()-ROTATION_BASE_MONTH);return((raw%5)+5)%5}
+function assignedSlot(orgKey,date=todayDate()){const org=organizationByKey(orgKey);if(!org)return"";const index=(org.base+rotationMonthIndex(date)*org.step)%SLOTS.length;return SLOTS[index][0]}
+function organizationsForSlot(date,time){return ORG_GROUPS.filter(v=>assignedSlot(v.key,date)===time)}
+function saveLogin(){const name=document.getElementById("name").value.trim(),orgKey=document.getElementById("org").value,dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim(),org=organizationByKey(orgKey);if(!name)return toast("이름을 입력해주세요.");if(!org)return toast("국·기관을 선택해주세요.");if(!dept||!org.departments.includes(dept))return toast("소속 부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();updateLoginState();render();toast("직원 정보와 배정시간이 저장되었습니다.")}
 function go(tab){st.tab=tab;if(tab==="reserve"){st.date=todayDate();st.menuPreviewDate=todayDate();st.menuCalendarOpen=false;}if(tab!=="more"){st.adminUnlocked=false;stopScanner()}render()}
 function shift(days){const d=new Date(st.date+"T00:00:00");d.setDate(d.getDate()+days);st.date=fmt(d);if(firebaseOn)listenReservations();render()}
 function quick(n){const d=new Date();d.setDate(d.getDate()+n);st.date=fmt(d);if(firebaseOn)listenReservations();render()}
@@ -446,7 +479,7 @@ function blockMessage(emp,date=todayDate()){
   return `전일 노쇼 이력으로 ${pretty(p.blockDate)} 예약이 제한됩니다.`;
 }
 
-function selectSlot(time){st.slot=time;render()}
+function selectSlot(time){const org=userOrganization(),assigned=org?assignedSlot(org.key,todayDate()):"";if(!assigned)return toast("소속 정보를 먼저 등록해주세요.");if(time!==assigned)return toast(`${org.name}의 이번 달 배정시간은 ${assigned}입니다.`);st.slot=time;render()}
 function render(){document.getElementById("content").innerHTML=views[st.tab]();document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));document.getElementById("nav-"+st.tab).classList.add("active");updateLoginState();setModeBadge();setTimeout(drawQr,0)}
 function drawQr(){
   const box=document.getElementById("qrBox"),r=latest();
@@ -518,6 +551,9 @@ function reservationDeadlineText(){
 async function reserve(){
   if(!st.user){updateLoginState();return toast("먼저 직원 정보를 등록해주세요.")}
   const bookingDate=todayDate();
+  const org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"";
+  if(!org||!assigned)return toast("국·기관과 부서 정보를 확인해주세요.");
+  if(st.slot!==assigned){st.slot=assigned;return toast(`${org.name}의 이번 달 배정시간은 ${assigned}입니다.`)}
   if(isBlocked(st.user.emp,bookingDate)) return toast(blockMessage(st.user.emp,bookingDate));
   st.date=bookingDate;
   if(firebaseOn) return reserveFirebase();
@@ -525,11 +561,13 @@ async function reserve(){
   if(remain(bookingDate,st.slot)<=0)return toast("선택한 시간은 마감되었습니다.")
   const m=menu(bookingDate);
   const late=reservationDeadlinePassed();
-  st.reservations.push({id:docId(bookingDate,st.user.emp),name:st.user.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:Date.now()});
+  st.reservations.push({id:docId(bookingDate,st.user.emp),name:st.user.name,orgKey:org.key,orgName:org.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:Date.now()});
   saveLocal();go("my");toast(late?lateReservationNotice():"예약이 완료되었습니다.")
 }
 async function reserveFirebase(){
   const bookingDate=todayDate();
+  const org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"";
+  if(!org||st.slot!==assigned)return toast("소속 국·기관의 배정시간만 예약할 수 있습니다.");
   const rRef=db.collection("reservations").doc(docId(bookingDate,st.user.emp));
   const sRef=db.collection("slotCounts").doc(slotId(bookingDate,st.slot));
   const m=menu(bookingDate);
@@ -547,7 +585,7 @@ async function reserveFirebase(){
         if(count>=cap) throw new Error("FULL");
         tx.set(sRef,{date:bookingDate,time:st.slot,cap,count:count+1,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       }
-      tx.set(rRef,{name:st.user.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      tx.set(rRef,{name:st.user.name,orgKey:org.key,orgName:org.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     });
     go("my");toast(late?lateReservationNotice():"예약이 완료되었습니다.");
   }catch(e){console.error(e);if(String(e.message).includes("EXISTS"))toast("이미 오늘 예약이 있습니다.");else if(String(e.message).includes("BLOCKED"))toast("노쇼 이력으로 오늘 예약이 제한됩니다.");else if(String(e.message).includes("FULL"))toast("선택한 시간은 마감되었습니다.");else toast("예약 처리 중 오류가 발생했습니다.")}
@@ -689,7 +727,7 @@ function adminView(){return `<div class="card"><div class="row"><div><div class=
 function adminPanel(){if(st.adminTab==="camera")return cameraPanel();if(st.adminTab==="menu")return menuPanel();if(st.adminTab==="reservations")return reservationPanel();return noticePanel()}
 function cameraPanel(){return `<div><div class="title" style="font-size:16px">QR 체크인 카메라</div><div class="sub">카메라를 켜면 QR 코드를 인식하여 예약자를 자동으로 입장 처리합니다.</div><div class="btnrow"><button class="btn primary full" onclick="startScanner()">카메라 켜기</button></div><div id="scannerArea"></div></div>`}
 function menuPanel(){return `<div><div class="row"><div><div class="title" style="font-size:16px">한 달 메뉴 업로드</div><div class="sub">CSV 양식으로 업로드하면 모든 화면에 반영됩니다.</div></div><button class="btn light small" onclick="downloadTemplate()">양식</button></div><div class="line"></div><input class="file" type="file" accept=".csv,text/csv" onchange="uploadMenu(event)"><div class="notice">권장 열 이름: date, main, menu, note</div></div>`}
-function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약 현황입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}</span><b>${c[s[0]]||0} / ${s[1]}</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.dept)}</div><div class="sub">${esc(r.time)} · 행정번호 ${esc(r.emp)} · ${esc(r.code)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":isLateReservationStatus(r.status)?"마감후예약":"예약"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
+function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약 현황과 국·기관별 배정입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}<small style="display:block;color:#6b7280">${organizationsForSlot(st.date,s[0]).map(v=>esc(v.name)).join(" · ")}</small></span><b>${c[s[0]]||0} / ${s[1]}</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"")} · ${esc(r.dept)}</div><div class="sub">${esc(r.time)} · 행정번호 ${esc(r.emp)} · ${esc(r.code)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":isLateReservationStatus(r.status)?"마감후예약":"예약"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
 function noticePanel(){const list=[...st.notices].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));return `<div><div class="title" style="font-size:16px">공지사항 · 버전업 관리</div><div class="sub">메인 대시보드에 공지와 업데이트 내용을 노출합니다.</div><div class="line"></div><div class="mini-card" style="margin-bottom:12px"><div class="form"><select id="noticeType" class="select"><option>공지</option><option>업데이트</option><option>점검</option><option>안내</option></select><input id="noticeTitle" class="input" placeholder="제목"><textarea id="noticeBody" placeholder="공지 내용 또는 업데이트 내용을 입력해주세요."></textarea><button class="btn primary full" onclick="addNotice()">공지 등록</button></div></div>${list.length?list.map(n=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><span class="notice-tag">${esc(n.type)}</span><div style="font-weight:900;margin-bottom:4px">${esc(n.title)}</div><div class="sub">${esc(n.body)}</div></div><button class="btn danger small" onclick="removeNotice('${n.id}')">삭제</button></div></div>`).join(""):`<div class="mini-card">등록된 공지사항이 없습니다.</div>`}</div>`}
 
 
@@ -725,9 +763,9 @@ function openModal(title,html){document.getElementById("modalTitle").textContent
 function closeModal(){document.getElementById("modal").classList.remove("show")}
 function rules(){openModal("이용수칙",`<ul class="menu-list"><li>입장 예정시각 전후 10분 내 입장을 권장합니다.</li><li>예약 후 미입장 시 노쇼로 누적될 수 있습니다.</li><li>식당 혼잡 완화를 위해 예약 시간 분산에 협조해주시기 바랍니다.</li></ul>`)}
 function allergy(){openModal("알레르기 정보",`<ul class="menu-list"><li>난류, 우유, 메밀, 땅콩, 대두, 밀, 고등어, 게, 새우</li><li>돼지고기, 복숭아, 토마토, 아황산류, 호두, 닭고기</li><li>쇠고기, 오징어, 조개류, 잣</li></ul>`)}
-function editUser(){if(!st.user)return updateLoginState();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><input id="editDept" class="input" value="${esc(st.user.dept)}"><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
-function applyEditUser(){const name=document.getElementById("editName").value.trim(),dept=document.getElementById("editDept").value.trim(),emp=document.getElementById("editEmp").value.trim();if(!name||!dept||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,dept,emp};saveLocal();closeModal();render();toast("정보가 수정되었습니다.")}
-function logout(){st.user=null;localStorage.removeItem("sg_real_user");updateLoginState();render();toast("로그아웃되었습니다.")}
+function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
+function applyEditUser(){const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();closeModal();render();toast("소속 정보와 배정시간이 수정되었습니다.")}
+function logout(){st.user=null;localStorage.removeItem("sg_real_user");populateOrganizationSelect("org","");populateDeptSelect("org","dept","");updateLoginState();render();toast("로그아웃되었습니다.")}
 function toggleHistory(){st.showHistory=!st.showHistory;render()}
 function unlockAdmin(){const pw=prompt("관리자 코드를 입력해주세요. (데모: 1234)");if(pw===null)return;if(pw==="1234"){st.adminUnlocked=true;st.adminTab="camera";render();toast("관리자 모드가 열렸습니다.")}else toast("관리자 코드가 올바르지 않습니다.")}
 function closeAdmin(){st.adminUnlocked=false;stopScanner();render()}
@@ -736,7 +774,7 @@ async function addNotice(){const type=document.getElementById("noticeType").valu
 async function removeNotice(idv){if(firebaseOn){try{await db.collection("notices").doc(idv).delete();toast("공지사항이 삭제되었습니다.")}catch(e){console.error(e);toast("삭제 중 오류가 발생했습니다.")}}else{st.notices=st.notices.filter(n=>n.id!==idv);saveLocal();render();toast("공지사항이 삭제되었습니다.")}}
 function csv(rows){return "\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n")}
 function download(name,text){const blob=new Blob([text],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
-function exportCsv(){const rows=[["날짜","입장시각","이름","부서","행정번호","상태","메인","메뉴","예약번호"]];st.reservations.filter(r=>r.date===st.date).forEach(r=>rows.push([r.date,r.time,r.name,r.dept,r.emp,r.status,r.main,r.menu,r.code]));download("서구밥상_"+st.date+".csv",csv(rows));toast("CSV를 다운로드했습니다.")}
+function exportCsv(){const rows=[["날짜","입장시각","국·기관","부서","이름","행정번호","상태","메인","메뉴","예약번호"]];st.reservations.filter(r=>r.date===st.date).forEach(r=>{const org=r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"";rows.push([r.date,r.time,org,r.dept,r.name,r.emp,r.status,r.main,r.menu,r.code])});download("서구밥상_"+st.date+".csv",csv(rows));toast("CSV를 다운로드했습니다.")}
 function downloadTemplate(){const y=new Date().getFullYear(),m=String(new Date().getMonth()+1).padStart(2,"0"),rows=[["date","main","menu","note"]];for(let d=1;d<=31;d++)rows.push([`${y}-${m}-${String(d).padStart(2,"0")}`,"","잡곡밥, 된장국, 제육볶음, 시금치무침, 김치",""]);download("서구밥상_메뉴업로드_양식.csv",csv(rows));toast("메뉴 양식을 내려받았습니다.")}
 function parseCSV(text){text=text.replace(/^\uFEFF/,"");let rows=[],row=[],cell="",quote=false;for(let i=0;i<text.length;i++){const ch=text[i],nx=text[i+1];if(ch==='"'){if(quote&&nx==='"'){cell+='"';i++}else quote=!quote}else if(ch===','&&!quote){row.push(cell.trim());cell=""}else if((ch==='\n'||ch==='\r')&&!quote){if(ch==='\r'&&nx==='\n')i++;row.push(cell.trim());if(row.some(v=>v))rows.push(row);row=[];cell=""}else cell+=ch}row.push(cell.trim());if(row.some(v=>v))rows.push(row);return rows}
 function normDate(v){const m=String(v||"").trim().match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);return m?`${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`:""}
