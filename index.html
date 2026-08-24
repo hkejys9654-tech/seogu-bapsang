@@ -215,6 +215,16 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 }
 .reserve-info-cell b{display:block;font-size:13px;margin-top:3px;color:#111827}
 .reserve-info-cell span{font-size:11px;color:#9a3412;font-weight:900}
+.booking-type{position:relative;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 14px;padding:5px;border-radius:18px;background:#fff;border:1px solid #fed7aa}
+.booking-type button{border:0;border-radius:13px;padding:12px 8px;background:transparent;color:#78716c;font-size:14px;font-weight:950;cursor:pointer}
+.booking-type button.active{background:linear-gradient(135deg,#ff8b3d,#ff6a00);color:#fff;box-shadow:0 8px 16px rgba(255,106,0,.2)}
+.party-picker{position:relative;margin:0 0 14px;padding:14px;border-radius:18px;background:#fff;border:1px solid #fdba74}
+.party-picker-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.party-stepper{display:flex;align-items:center;gap:10px}
+.party-stepper button{width:38px;height:38px;border:1px solid #fed7aa;border-radius:12px;background:#fff7ed;color:#c2410c;font-size:21px;font-weight:950;cursor:pointer}
+.party-count{min-width:52px;text-align:center;color:#ea580c;font-size:25px;font-weight:950;font-variant-numeric:tabular-nums}
+.party-note{margin-top:9px;color:#7c2d12;font-size:12px;font-weight:800;line-height:1.5}
+.party-badge{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#ede9fe;color:#6d28d9;font-size:11px;font-weight:950;white-space:nowrap}
 .reserve-guide-text{
   position:relative;
   font-size:13px;
@@ -336,6 +346,8 @@ let st={
   tab:"home",
   date:fmt(new Date()),
   slot:"11:30",
+  bookingType:"individual",
+  partySize:2,
   user:getLocal("user",null),
   reservations:getLocal("reservations",[]),
   menus:getLocal("menus",{}),
@@ -353,7 +365,7 @@ let st={
 };
 
 const views={
-  home(){const m=menu(st.date),total=byDate(st.date).length,max=SLOTS.reduce((a,b)=>a+b[1],0),p=Math.round(total/max*100),org=userOrganization(),assigned=org?assignedSlot(org.key,todayDate()):"";return `
+  home(){const m=menu(st.date),total=totalPeople(byDate(st.date).filter(r=>r.status!=="noshow")),max=SLOTS.reduce((a,b)=>a+b[1],0),p=Math.round(total/max*100),org=userOrganization(),assigned=org?assignedSlot(org.key,todayDate()):"";return `
     <div class="card"><div class="row"><div><div style="font-weight:900">${st.user?esc(st.user.name):"직원"}님, 즐거운 점심시간 되세요!</div><div class="sub">${pretty(st.date)}</div></div><span class="badge">${myOnDate(st.date)?"예약 있음":"예약 가능"}</span></div>${org?`<div class="assignment-card"><div class="tiny">이번 달 ${esc(org.name)} 배정시간</div><div class="assignment-time">${esc(assigned)}</div><div class="assignment-org">${esc(st.user.dept)} · 매월 자동 순환</div></div>`:""}</div>
     <div class="card dashboard-card">
       <div class="menu-kicker"><span class="menu-kicker-dot"></span><span>오늘의 점심</span></div>
@@ -375,6 +387,7 @@ const views={
     const blocked=st.user && isBlocked(st.user.emp, bookingDate);
     const org=userOrganization();
     const assigned=org?assignedSlot(org.key,bookingDate):"";
+    const partySize=selectedPartySize();
     if(assigned&&!isEligibleTime(st.slot,bookingDate,org))st.slot=assigned;
     return `<div class="card menu-check-card">
       <div class="row" style="align-items:flex-start">
@@ -401,21 +414,27 @@ const views={
       </div>
       <div class="reserve-info-grid">
         <div class="reserve-info-cell"><span>예약일</span><b>오늘</b></div>
-        <div class="reserve-info-cell"><span>구분</span><b>점심식사</b></div>
+        <div class="reserve-info-cell"><span>구분</span><b>${st.bookingType==="group"?"단체 "+partySize+"명":"개인 1명"}</b></div>
         <div class="reserve-info-cell"><span>선택범위</span><b>${assigned} 이후</b></div>
       </div>
+      <div class="booking-type" aria-label="예약 구분">
+        <button class="${st.bookingType==="individual"?"active":""}" onclick="setBookingType('individual')">👤 개인 예약</button>
+        <button class="${st.bookingType==="group"?"active":""}" onclick="setBookingType('group')">👥 단체 예약</button>
+      </div>
+      ${st.bookingType==="group"?`<div class="party-picker"><div class="party-picker-head"><div><div style="font-weight:950">총 예약 인원</div><div class="tiny">대표자 포함</div></div><div class="party-stepper"><button onclick="changePartySize(-1)" aria-label="인원 줄이기">−</button><div class="party-count">${partySize}명</div><button onclick="changePartySize(1)" aria-label="인원 늘리기">＋</button></div></div><div class="party-note">2~10명까지 예약할 수 있습니다. 참여자는 대표자와 같은 조직이 아니어도 되며, 전원이 함께 호출·입장합니다.</div></div>`:""}
       ${org?`<div class="assignment-card"><div class="tiny">${esc(org.name)} · ${esc(st.user.dept)}</div><div class="assignment-time">${esc(assigned)}</div><div class="assignment-org">가장 빠른 예약 가능시간 · 이후 시간도 선택 가능</div></div>`:`<div class="notice">국·기관과 부서 정보를 먼저 등록해주세요.</div>`}
       <div class="reserve-guide-text">기본시간보다 이른 시간은 닫히고, 기본시간과 이후 시간은 잔여 정원 안에서 함께 이용할 수 있습니다.</div>
-      <div class="slots">${SLOTS.map(s=>{const time=s[0],rem=remain(bookingDate,time),stt=status(rem,s[1]),mine=time===assigned,eligible=isEligibleTime(time,bookingDate,org),overflow=isOverflowChoice(time,bookingDate,org),available=canBookTime(bookingDate,time,org),active=st.slot===time,orgs=organizationsForSlot(bookingDate,time),shared=overflowRemain(bookingDate,time);return `<button class="slot ${mine?"mine":""} ${eligible&&!mine?"eligible-later":""} ${active?"active":""} ${!available||blocked?"disabled":""}" onclick="selectSlot('${time}')"><div class="time">${time}</div><div class="meta">${overflow&&!overflowQuotaReleased()?`공유석 ${shared}명`: `잔여 ${rem}명`} / 정원 ${s[1]}명</div><div class="slot-orgs">기본 배정: ${orgs.map(v=>esc(v.name)).join(" · ")}</div><div class="status ${eligible?stt[1]:"gray"}">${active?"선택됨 · "+stt[0]:mine?"내 기본시간 · "+stt[0]:eligible?available?"이후시간 예약 가능":"공유석 마감":"배정시간 이전"}</div></button>`}).join("")}</div>
+      <div class="slots">${SLOTS.map(s=>{const time=s[0],rem=remain(bookingDate,time),stt=status(rem,s[1]),mine=time===assigned,eligible=isEligibleTime(time,bookingDate,org),overflow=isOverflowChoice(time,bookingDate,org),available=canBookTime(bookingDate,time,org,partySize),active=st.slot===time,orgs=organizationsForSlot(bookingDate,time),shared=overflowRemain(bookingDate,time);return `<button class="slot ${mine?"mine":""} ${eligible&&!mine?"eligible-later":""} ${active?"active":""} ${!available||blocked?"disabled":""}" onclick="selectSlot('${time}')"><div class="time">${time}</div><div class="meta">${overflow&&!overflowQuotaReleased()?`공유석 ${shared}명`: `잔여 ${rem}명`} / 정원 ${s[1]}명</div><div class="slot-orgs">기본 배정: ${orgs.map(v=>esc(v.name)).join(" · ")}</div><div class="status ${eligible?stt[1]:"gray"}">${active?"선택됨 · "+stt[0]:mine?"내 기본시간 · "+stt[0]:eligible?available?"이후시간 예약 가능":partySize>rem?"선택 인원보다 잔여석 부족":"공유석 마감":"배정시간 이전"}</div></button>`}).join("")}</div>
       <div class="noshow-warning"><div style="font-weight:900;margin-bottom:6px">예약 이용 안내</div>
 <ul class="menu-list" style="padding-left:16px">
   <li>기본 배정시간과 그 이후 시간대 중 잔여석이 있는 시간을 예약할 수 있습니다.</li>
+  <li>단체 예약은 대표자 포함 2~10명이며, 참여자의 소속 제한 없이 전원이 함께 입장합니다.</li>
   <li>오전 10시 30분 전에는 뒤 시간대의 일부 좌석만 공유하고, 이후에는 남은 좌석을 모두 개방합니다.</li>
   <li>예약 후 입장하지 않으면 관리자 화면에서 노쇼로 표시됩니다.</li>
   <li>노쇼 처리 시 다음날 예약이 제한됩니다.</li>
 </ul></div>
       ${blocked?`<div class="noshow-warning">예약 제한 대상입니다. ${blockMessage(st.user.emp,bookingDate)}</div>`:""}
-      <div class="btnrow"><button class="btn primary full" onclick="reserve()" ${blocked||!assigned||!canBookTime(bookingDate,st.slot,org)?"disabled":""}>${assigned?st.slot+" 예약 확정":"소속 정보 확인 필요"}</button></div>
+      <div class="btnrow"><button class="btn primary full" onclick="reserve()" ${blocked||!assigned||!canBookTime(bookingDate,st.slot,org,partySize)?"disabled":""}>${assigned?`${st.slot} ${st.bookingType==="group"?partySize+"명 단체":"개인"} 예약 확정`:"소속 정보 확인 필요"}</button></div>
     </div>`},
   my(){
     const r=latest();
@@ -432,6 +451,7 @@ const views={
         <div class="ticket-status">${call.status}</div>
         ${call.token?`<div class="ticket-token">확인표시 · ${esc(call.token)}</div>`:""}
         <div class="ticket-owner">${esc(r.name)} · ${esc(orgName)} · ${esc(r.dept)}</div>
+        <div style="position:relative;z-index:1;margin-top:8px"><span class="party-badge">${reservationLabel(r)} · 총 ${partySizeOf(r)}명</span></div>
         <div class="ticket-date">${pretty(r.date)} · ${esc(r.place)}</div>
       </div>
       <div class="qr-help">확인이 필요한 경우에만 QR을 스캔해주세요.</div>
@@ -439,7 +459,7 @@ const views={
       <div class="qr-caption">예약정보 확인용 QR</div>
       ${isLateReservationStatus(r.status)||!r.code?``:`<div class="code">${esc(r.code)}</div>`}
       ${isToday&&r.callStatus==="passed"&&Number(r.requeueCount||0)<1?`<div class="requeue-box"><b>호출을 놓쳤나요?</b><div class="sub">한 번만 대기열 맨 뒤로 돌아갈 수 있습니다.</div><button class="btn primary full" style="margin-top:10px" onclick="requestRequeue('${r.id}')">다시 대기하기</button></div>`:isToday&&r.callStatus==="passed"?`<div class="requeue-box"><b>재대기 1회를 이미 사용했습니다.</b><div class="sub">안내자에게 직접 문의해주세요.</div></div>`:""}
-      <div class="detail"><span>예약일시</span><b>${pretty(r.date)} ${esc(r.time)}</b></div><div class="detail"><span>재대기</span><b>${Number(r.requeueCount||0)} / 1회</b></div><div class="detail"><span>예약 구분</span><b>${esc(r.meal||"점심식사")}</b></div><div class="detail"><span>식당</span><b>${esc(r.place)}</b></div><div class="detail"><span>위치</span><b>${esc(r.loc)}</b></div><div class="detail"><span>메뉴</span><b>${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</b></div><div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약취소</button><button class="btn soft full" onclick="toggleHistory()">내역보기</button></div></div>${st.showHistory?historyView():""}`
+      <div class="detail"><span>예약일시</span><b>${pretty(r.date)} ${esc(r.time)}</b></div><div class="detail"><span>예약 유형</span><b>${reservationLabel(r)} · ${partySizeOf(r)}명</b></div><div class="detail"><span>재대기</span><b>${Number(r.requeueCount||0)} / 1회</b></div><div class="detail"><span>식사 구분</span><b>${esc(r.meal||"점심식사")}</b></div><div class="detail"><span>식당</span><b>${esc(r.place)}</b></div><div class="detail"><span>위치</span><b>${esc(r.loc)}</b></div><div class="detail"><span>메뉴</span><b>${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</b></div><div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약취소</button><button class="btn soft full" onclick="toggleHistory()">내역보기</button></div></div>${st.showHistory?historyView():""}`
   },
   more(){const org=userOrganization(),userText=st.user?`${esc(st.user.name)} · ${org?esc(org.name)+" · ":""}${esc(st.user.dept)} · ${esc(st.user.emp)}`:"미등록",pushOn=notificationPermission()==="granted";return `<div class="card"><div class="title">더보기</div><div class="sub">설정과 관리자 기능을 여기에서 확인할 수 있습니다.</div><div class="line"></div><div class="mini-card"><div style="font-weight:900">내 정보</div><div class="sub" style="margin-top:6px">${userText}</div><div class="btnrow"><button class="btn light full" onclick="editUser()">정보수정</button><button class="btn light full" onclick="logout()">로그아웃</button></div></div><div class="push-card"><div style="font-weight:900">🔔 입장 호출 알림</div><div class="sub" style="margin-top:5px">내 차례가 되면 진동과 알림으로 알려드립니다.</div><span class="push-state ${pushOn?"on":""}">${pushOn?"알림 허용됨":"알림 꺼짐"}</span><button class="btn ${pushOn?"light":"primary"} full" style="margin-top:10px" onclick="enablePushNotifications()">${pushOn?"알림 다시 연결":"호출 알림 켜기"}</button></div><div class="btnrow"><button class="btn soft full" onclick="rules()">이용수칙</button><button class="btn soft full" onclick="allergy()">알레르기</button></div><div class="btnrow"><button class="btn light full" onclick="unlockAdmin()">관리자 모드</button><button class="btn light full" onclick="resetLocal()">로컬 초기화</button></div>${!firebaseOn?`<div class="notice">Firebase 연결에 실패하면 로컬 데모 데이터로 표시됩니다. GitHub Pages 주소에서 다시 확인해주세요.</div>`:""}</div>${st.adminUnlocked?adminView():""}`}
 };
@@ -549,11 +569,16 @@ function quick(n){const d=new Date();d.setDate(d.getDate()+n);st.date=fmt(d);if(
 function activeQuick(n){const d=new Date();d.setDate(d.getDate()+n);return st.date===fmt(d)?"active":""}
 function menu(date){if(st.menus[date])return st.menus[date];const n=new Date(date+"T00:00:00").getDate();return{date,main:"",menu:SAMPLE[n%SAMPLE.length],note:""}}
 function byDate(date){return st.reservations.filter(r=>r.date===date&&r.status!=="cancelled")}
-function counts(date){const c={};SLOTS.forEach(s=>c[s[0]]=0);byDate(date).forEach(r=>{if(c[r.time]!==undefined)c[r.time]++});return c}
+function partySizeOf(r){const n=Math.trunc(Number(r&&r.partySize)||1);return Math.max(1,Math.min(10,n))}
+function selectedPartySize(){return st.bookingType==="group"?Math.max(2,Math.min(10,Math.trunc(Number(st.partySize)||2))):1}
+function reservationLabel(r){return (partySizeOf(r)>1||(r&&r.reservationType==="group"))?"단체 예약":"개인 예약"}
+function totalPeople(rows){return (rows||[]).reduce((sum,r)=>sum+partySizeOf(r),0)}
+function takeWaitingByPeople(rows,limit){const picked=[];let people=0;for(const r of rows){const size=partySizeOf(r);if(picked.length&&people+size>limit)break;picked.push(r);people+=size;if(people>=limit)break}return picked}
+function counts(date){const c={};SLOTS.forEach(s=>c[s[0]]=0);byDate(date).forEach(r=>{if(r.status!=="noshow"&&c[r.time]!==undefined)c[r.time]+=partySizeOf(r)});return c}
 function remain(date,time){const cap=SLOTS.find(s=>s[0]===time)[1];return Math.max(0,cap-(counts(date)[time]||0))}
-function overflowCount(date,time){return byDate(date).filter(r=>r.time===time&&(r.isOverflow===true||(r.assignedTime&&r.assignedTime!==r.time))).length}
+function overflowCount(date,time){return totalPeople(byDate(date).filter(r=>r.status!=="noshow"&&r.time===time&&(r.isOverflow===true||(r.assignedTime&&r.assignedTime!==r.time))))}
 function overflowRemain(date,time){const totalRemain=remain(date,time);if(overflowQuotaReleased())return totalRemain;return Math.max(0,Math.min(totalRemain,EARLY_OVERFLOW_QUOTA-overflowCount(date,time)))}
-function canBookTime(date,time,org=userOrganization()){if(!isEligibleTime(time,date,org)||remain(date,time)<=0)return false;return !isOverflowChoice(time,date,org)||overflowRemain(date,time)>0}
+function canBookTime(date,time,org=userOrganization(),needed=1){const size=Math.max(1,Math.trunc(Number(needed)||1));if(!isEligibleTime(time,date,org)||remain(date,time)<size)return false;return !isOverflowChoice(time,date,org)||overflowRemain(date,time)>=size}
 function status(rem,cap){if(rem<=0)return["마감","gray"];const p=rem/cap;if(p>.45)return["여유","good"];if(p>.18)return["보통","mid"];return["혼잡","bad"]}
 function myOnDate(date){return st.user?st.reservations.find(r=>r.emp===st.user.emp&&r.date===date&&r.status!=="cancelled"):null}
 function latest(){if(!st.user)return null;return st.reservations.filter(r=>r.emp===st.user.emp&&r.status!=="cancelled").sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time))[0]||null}
@@ -577,7 +602,9 @@ function blockMessage(emp,date=todayDate()){
   return `전일 노쇼 이력으로 ${pretty(p.blockDate)} 예약이 제한됩니다.`;
 }
 
-function selectSlot(time){const org=userOrganization(),date=todayDate(),assigned=org?assignedSlot(org.key,date):"";if(!assigned)return toast("소속 정보를 먼저 등록해주세요.");if(!isEligibleTime(time,date,org))return toast(`${org.name}은 ${assigned}부터 예약할 수 있습니다.`);if(!canBookTime(date,time,org))return toast(isOverflowChoice(time,date,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.");st.slot=time;render()}
+function setBookingType(type){st.bookingType=type==="group"?"group":"individual";if(st.bookingType==="group")st.partySize=Math.max(2,Math.min(10,Number(st.partySize)||2));render()}
+function changePartySize(delta){st.partySize=Math.max(2,Math.min(10,selectedPartySize()+Number(delta||0)));render()}
+function selectSlot(time){const org=userOrganization(),date=todayDate(),assigned=org?assignedSlot(org.key,date):"",size=selectedPartySize();if(!assigned)return toast("소속 정보를 먼저 등록해주세요.");if(!isEligibleTime(time,date,org))return toast(`${org.name}은 ${assigned}부터 예약할 수 있습니다.`);if(!canBookTime(date,time,org,size))return toast(remain(date,time)<size?`${size}명이 함께 예약할 잔여석이 부족합니다.`:isOverflowChoice(time,date,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.");st.slot=time;render()}
 function render(){document.getElementById("content").innerHTML=views[st.tab]();document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));document.getElementById("nav-"+st.tab).classList.add("active");updateLoginState();setModeBadge();setTimeout(drawQr,0)}
 function drawQr(){
   const box=document.getElementById("qrBox"),r=latest();
@@ -665,25 +692,25 @@ function reservationDeadlineText(){
 async function reserve(){
   if(!st.user){updateLoginState();return toast("먼저 직원 정보를 등록해주세요.")}
   const bookingDate=todayDate();
-  const org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"";
+  const org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"",partySize=selectedPartySize();
   if(!org||!assigned)return toast("국·기관과 부서 정보를 확인해주세요.");
   if(!isEligibleTime(st.slot,bookingDate,org)){st.slot=assigned;return toast(`${org.name}은 ${assigned}부터 예약할 수 있습니다.`)}
-  if(!canBookTime(bookingDate,st.slot,org))return toast(isOverflowChoice(st.slot,bookingDate,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.")
+  if(!canBookTime(bookingDate,st.slot,org,partySize))return toast(remain(bookingDate,st.slot)<partySize?`${partySize}명이 함께 예약할 잔여석이 부족합니다.`:isOverflowChoice(st.slot,bookingDate,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.")
   if(isBlocked(st.user.emp,bookingDate)) return toast(blockMessage(st.user.emp,bookingDate));
   st.date=bookingDate;
   if(firebaseOn) return reserveFirebase();
   if(myOnDate(bookingDate)){go("my");return toast("이미 오늘 예약이 있습니다.")}
-  if(remain(bookingDate,st.slot)<=0)return toast("선택한 시간은 마감되었습니다.")
+  if(remain(bookingDate,st.slot)<partySize)return toast(`${partySize}명이 함께 예약할 잔여석이 부족합니다.`)
   const m=menu(bookingDate);
   const late=reservationDeadlinePassed();
   const overflow=isOverflowChoice(st.slot,bookingDate,org);
   const queueNumber=Math.max(0,...st.reservations.filter(r=>r.date===bookingDate&&r.time===st.slot).map(r=>Number(r.queueNumber)||0))+1;
-  st.reservations.push({id:docId(bookingDate,st.user.emp),name:st.user.name,orgKey:org.key,orgName:org.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,originalTime:st.slot,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:Date.now()});
-  saveLocal();go("my");toast(late?lateReservationNotice():"예약이 완료되었습니다.")
+  st.reservations.push({id:docId(bookingDate,st.user.emp),name:st.user.name,orgKey:org.key,orgName:org.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,originalTime:st.slot,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:Date.now()});
+  saveLocal();go("my");toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.")
 }
 async function reserveFirebase(){
   const bookingDate=todayDate();
-  const org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"";
+  const org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"",partySize=selectedPartySize();
   if(!org||!isEligibleTime(st.slot,bookingDate,org))return toast("기본 배정시간보다 이른 시간은 예약할 수 없습니다.");
   const overflow=isOverflowChoice(st.slot,bookingDate,org);
   const rRef=db.collection("reservations").doc(docId(bookingDate,st.user.emp));
@@ -703,13 +730,13 @@ async function reserveFirebase(){
         const count=sSnap.exists?(sSnap.data().count||0):0;
         const overflowCountNow=sSnap.exists?(sSnap.data().overflowCount||0):0;
         queueNumber=(sSnap.exists?(sSnap.data().nextQueueNumber||count):count)+1;
-        if(count>=cap) throw new Error("FULL");
-        if(overflow&&!overflowQuotaReleased()&&overflowCountNow>=EARLY_OVERFLOW_QUOTA)throw new Error("OVERFLOW_FULL");
-        tx.set(sRef,{date:bookingDate,time:st.slot,cap,count:count+1,overflowCount:overflowCountNow+(overflow?1:0),nextQueueNumber:queueNumber,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        if(count+partySize>cap) throw new Error("FULL");
+        if(overflow&&!overflowQuotaReleased()&&overflowCountNow+partySize>EARLY_OVERFLOW_QUOTA)throw new Error("OVERFLOW_FULL");
+        tx.set(sRef,{date:bookingDate,time:st.slot,cap,count:count+partySize,overflowCount:overflowCountNow+(overflow?partySize:0),nextQueueNumber:queueNumber,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
       }
-      tx.set(rRef,{name:st.user.name,orgKey:org.key,orgName:org.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,originalTime:st.slot,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      tx.set(rRef,{name:st.user.name,orgKey:org.key,orgName:org.name,dept:st.user.dept,emp:st.user.emp,date:bookingDate,time:st.slot,originalTime:st.slot,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",main:m.main,menu:m.menu,status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,st.slot,st.user.emp),createdAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     });
-    go("my");toast(late?lateReservationNotice():"예약이 완료되었습니다.");
+    go("my");toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.");
   }catch(e){console.error(e);if(String(e.message).includes("EXISTS"))toast("이미 오늘 예약이 있습니다.");else if(String(e.message).includes("BLOCKED"))toast("노쇼 이력으로 오늘 예약이 제한됩니다.");else if(String(e.message).includes("OVERFLOW_FULL"))toast("선택한 시간의 공유 좌석이 마감되었습니다.");else if(String(e.message).includes("FULL"))toast("선택한 시간은 마감되었습니다.");else toast("예약 처리 중 오류가 발생했습니다.")}
 }
 async function cancelRes(idv){
@@ -757,8 +784,9 @@ async function cancelFirebase(idv){
         const sSnap=await tx.get(sRef);
         const count=sSnap.exists?(sSnap.data().count||0):0;
         const overflowCountNow=sSnap.exists?(sSnap.data().overflowCount||0):0;
-        newCount=Math.max(0,count-1);
-        newOverflowCount=Math.max(0,overflowCountNow-(r.isOverflow?1:0));
+        const partySize=partySizeOf(r);
+        newCount=Math.max(0,count-partySize);
+        newOverflowCount=Math.max(0,overflowCountNow-(r.isOverflow?partySize:0));
       }
 
       tx.update(rRef,{
@@ -790,10 +818,11 @@ async function cancelFirebase(idv){
 
 function requeueTarget(r){
   const start=Math.max(0,slotIndex(r.time));
+  const partySize=partySizeOf(r);
   for(let i=start;i<SLOTS.length;i++){
     const time=SLOTS[i][0];
     if(isQueueClosed(r.date,time))continue;
-    if(time===r.time||remain(r.date,time)>0)return time;
+    if(time===r.time||remain(r.date,time)>=partySize)return time;
   }
   return "";
 }
@@ -816,7 +845,7 @@ async function requestRequeueFirebase(idv,target){
     let oldTime="";
     await db.runTransaction(async tx=>{
       const rSnap=await tx.get(rRef);if(!rSnap.exists)throw new Error("NO");
-      const r=rSnap.data();oldTime=r.time;
+       const r=rSnap.data();oldTime=r.time;const partySize=partySizeOf(r);
       if(r.callStatus!=="passed")throw new Error("NOT_PASSED");
       if(Number(r.requeueCount||0)>=1)throw new Error("USED");
       const controlSnap=await tx.get(db.collection("queueControls").doc(queueControlKey(r.date,target)));
@@ -828,14 +857,14 @@ async function requestRequeueFirebase(idv,target){
       const targetCap=SLOTS.find(s=>s[0]===target)[1];
       const targetCount=targetSnap.exists?(targetSnap.data().count||0):0;
       const nextNumber=(targetSnap.exists?(targetSnap.data().nextQueueNumber||targetCount):targetCount)+1;
-      if(target!==r.time&&targetCount>=targetCap)throw new Error("FULL");
+       if(target!==r.time&&targetCount+partySize>targetCap)throw new Error("FULL");
       const now=firebase.firestore.FieldValue.serverTimestamp();
       if(target===r.time){
         tx.set(targetRef,{nextQueueNumber:nextNumber,updatedAt:now},{merge:true});
       }else{
         const oldCount=oldSnap.exists?(oldSnap.data().count||0):0,oldOverflow=oldSnap.exists?(oldSnap.data().overflowCount||0):0,targetOverflow=targetSnap.exists?(targetSnap.data().overflowCount||0):0,newOverflow=target!==(r.assignedTime||r.time);
-        tx.set(oldRef,{count:Math.max(0,oldCount-1),overflowCount:Math.max(0,oldOverflow-(r.isOverflow?1:0)),updatedAt:now},{merge:true});
-        tx.set(targetRef,{date:r.date,time:target,cap:targetCap,count:targetCount+1,overflowCount:targetOverflow+(newOverflow?1:0),nextQueueNumber:nextNumber,updatedAt:now},{merge:true});
+         tx.set(oldRef,{count:Math.max(0,oldCount-partySize),overflowCount:Math.max(0,oldOverflow-(r.isOverflow?partySize:0)),updatedAt:now},{merge:true});
+         tx.set(targetRef,{date:r.date,time:target,cap:targetCap,count:targetCount+partySize,overflowCount:targetOverflow+(newOverflow?partySize:0),nextQueueNumber:nextNumber,updatedAt:now},{merge:true});
       }
       tx.update(rRef,{time:target,originalTime:r.originalTime||r.time,queueNumber:nextNumber,requeueCount:1,callStatus:"waiting",callToken:firebase.firestore.FieldValue.delete(),callBatchId:firebase.firestore.FieldValue.delete(),isOverflow:target!==(r.assignedTime||r.time),requeuedAt:now,updatedAt:now});
     });
@@ -861,13 +890,16 @@ async function markNoShowFirebase(idv){
       const r=snap.data();
       if(r.status==="checkedin")throw new Error("CHECKED");
       const sRef=db.collection("slotCounts").doc(slotId(r.date,r.time));
-      tx.update(rRef,{status:"noshow",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      let slotUpdate=null;
       if(!isLateReservationStatus(r.status)){
         const sSnap=await tx.get(sRef);
         const count=sSnap.exists?(sSnap.data().count||0):0;
         const overflowCountNow=sSnap.exists?(sSnap.data().overflowCount||0):0;
-        tx.set(sRef,{count:Math.max(0,count-1),overflowCount:Math.max(0,overflowCountNow-(r.isOverflow?1:0)),updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
+        const partySize=partySizeOf(r);
+        slotUpdate={count:Math.max(0,count-partySize),overflowCount:Math.max(0,overflowCountNow-(r.isOverflow?partySize:0)),updatedAt:firebase.firestore.FieldValue.serverTimestamp()};
       }
+      tx.update(rRef,{status:"noshow",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      if(slotUpdate)tx.set(sRef,slotUpdate,{merge:true});
       tx.set(db.collection("penalties").doc(r.emp),{emp:r.emp,name:r.name,dept:r.dept,blockDate:nextDate(r.date),sourceDate:r.date,createdAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
     });
     toast("노쇼 처리되었습니다. 다음날 예약이 제한됩니다.");
@@ -875,8 +907,9 @@ async function markNoShowFirebase(idv){
 }
 
 async function checkin(idv){
-  if(firebaseOn){try{await db.collection("reservations").doc(idv).update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});toast("입장 처리 완료")}catch(e){console.error(e);toast("입장 처리 중 오류가 발생했습니다.")}return;}
-  const r=st.reservations.find(x=>x.id===idv);if(!r)return;if(r.status==="checkedin")return toast("이미 입장 처리되었습니다.");r.status="checkedin";saveLocal();render();toast("입장 처리 완료")
+  const current=st.reservations.find(x=>x.id===idv),people=partySizeOf(current);
+  if(firebaseOn){try{await db.collection("reservations").doc(idv).update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});toast(`${people}명 입장 처리 완료`)}catch(e){console.error(e);toast("입장 처리 중 오류가 발생했습니다.")}return;}
+  const r=current;if(!r)return;if(r.status==="checkedin")return toast("이미 입장 처리되었습니다.");r.status="checkedin";saveLocal();render();toast(`${people}명 입장 처리 완료`)
 }
 async function checkinByCode(text){
   if(!text)return "QR 정보가 없습니다.";
@@ -892,10 +925,10 @@ async function checkinByCode(text){
     if(r.callStatus!=="called")return r.callStatus==="passed"?`${r.name}님의 호출이 지났습니다. 안내자 확인이 필요합니다.`:`${r.name}님은 아직 입장 호출 전입니다.`;
     if(st.penalties[r.emp]&&st.penalties[r.emp].blockDate===r.date)return `${r.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;
     await ref.update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    return `${r.name}님 입장 처리 완료: ${r.time}`;
+    return `${r.name}님 ${partySizeOf(r)}명 입장 처리 완료: ${r.time}`;
   }
   const found=st.reservations.find(r=>r.code===text)||(parts.length>=4?st.reservations.find(r=>r.date===parts[1]&&r.time===parts[2]&&r.emp===parts[3]&&r.status!=="cancelled"):null);
-  if(!found)return"예약 정보를 찾지 못했습니다.";if(found.status==="noshow")return `${found.name}님은 노쇼 처리된 예약입니다. 다음날 예약 제한 대상입니다.`;if(found.status==="checkedin")return `${found.name}님은 이미 입장 처리되었습니다.`;if(found.callStatus!=="called")return found.callStatus==="passed"?`${found.name}님의 호출이 지났습니다. 안내자 확인이 필요합니다.`:`${found.name}님은 아직 입장 호출 전입니다.`;if(st.penalties[found.emp]&&st.penalties[found.emp].blockDate===found.date)return `${found.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;found.status="checkedin";saveLocal();render();return `${found.name}님 입장 처리 완료: ${found.time}`;
+  if(!found)return"예약 정보를 찾지 못했습니다.";if(found.status==="noshow")return `${found.name}님은 노쇼 처리된 예약입니다. 다음날 예약 제한 대상입니다.`;if(found.status==="checkedin")return `${found.name}님은 이미 입장 처리되었습니다.`;if(found.callStatus!=="called")return found.callStatus==="passed"?`${found.name}님의 호출이 지났습니다. 안내자 확인이 필요합니다.`:`${found.name}님은 아직 입장 호출 전입니다.`;if(st.penalties[found.emp]&&st.penalties[found.emp].blockDate===found.date)return `${found.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;found.status="checkedin";saveLocal();render();return `${found.name}님 ${partySizeOf(found)}명 입장 처리 완료: ${found.time}`;
 }
 
 
@@ -905,16 +938,16 @@ function menuPreview(menuText,count=3){const items=menuItems(menuText);return it
 
 function plateSVG(){return `<svg width="76" height="76" viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="7" y="12" width="62" height="50" rx="16" fill="#F4E7BD"/><rect x="13" y="18" width="50" height="38" rx="12" fill="#FBF6E6"/><circle cx="27" cy="31" r="8" fill="#E6E9F3"/><circle cx="47" cy="31" r="9" fill="#D7D3F4"/><circle cx="27" cy="47" r="8.5" fill="#74D8A9"/><circle cx="47" cy="47" r="9" fill="#F4C944"/><path d="M61 19C63.5 24.5 63.5 49.5 61 55" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M15 19V55" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M11 23H19" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M11 30H19" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/><path d="M11 37H19" stroke="#D4B770" stroke-width="2.5" stroke-linecap="round"/></svg>`}
 function homeNoticeList(){const items=[...st.notices].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0)).slice(0,3);if(!items.length)return `<div class="tiny">등록된 공지사항이 없습니다.</div>`;return items.map(n=>`<div class="notice-item"><div class="notice-tag">${esc(n.type||"공지")}</div><div style="font-weight:900;margin-bottom:4px">${esc(n.title)}</div><div class="notice-text">${esc(n.body)}</div></div>`).join("")}
-function historyView(){const list=st.reservations.filter(r=>st.user&&r.emp===st.user.emp).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));return `<div class="card"><div class="row"><div class="title" style="margin:0">예약 내역</div><button class="btn light small" onclick="toggleHistory()">닫기</button></div><div class="line"></div>${list.map(r=>`<div class="reservation-item"><div class="row"><div><div style="font-weight:900">${pretty(r.date)} ${esc(r.time)}</div><div class="sub">${esc(r.place)} · ${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="cancelled"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="cancelled"?"취소":"예약"}</span></div></div>`).join("")}</div>`}
+function historyView(){const list=st.reservations.filter(r=>st.user&&r.emp===st.user.emp).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));return `<div class="card"><div class="row"><div class="title" style="margin:0">예약 내역</div><button class="btn light small" onclick="toggleHistory()">닫기</button></div><div class="line"></div>${list.map(r=>`<div class="reservation-item"><div class="row"><div><div style="font-weight:900">${pretty(r.date)} ${esc(r.time)}</div><div class="sub">${reservationLabel(r)} · ${partySizeOf(r)}명 · ${esc(r.place)} · ${cleanMain(r.main)?esc(r.main):"오늘의 점심 메뉴"}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="cancelled"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="cancelled"?"취소":"예약"}</span></div></div>`).join("")}</div>`}
 function adminView(){return `<div class="card"><div class="row"><div><div class="title">관리자 모드</div><div class="sub">입장 흐름과 예약 현황을 실시간으로 관리합니다.</div></div><button class="btn light small" onclick="closeAdmin()">닫기</button></div><div class="line"></div><div class="admin-tabs"><button class="${st.adminTab==="call"?"active":""}" onclick="setAdminTab('call')">입장호출</button><button class="${st.adminTab==="camera"?"active":""}" onclick="setAdminTab('camera')">QR확인</button><button class="${st.adminTab==="menu"?"active":""}" onclick="setAdminTab('menu')">메뉴</button><button class="${st.adminTab==="reservations"?"active":""}" onclick="setAdminTab('reservations')">예약자</button><button class="${st.adminTab==="notice"?"active":""}" onclick="setAdminTab('notice')">공지</button></div>${adminPanel()}</div>`}
 function adminPanel(){if(st.adminTab==="call")return callPanel();if(st.adminTab==="camera")return cameraPanel();if(st.adminTab==="menu")return menuPanel();if(st.adminTab==="reservations")return reservationPanel();return noticePanel()}
 function callPanel(){
-  const time=st.adminCallSlot,date=st.date,closed=isQueueClosed(date,time),rows=queueRows(date,time),waiting=rows.filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed"),retryWaiting=waiting.filter(r=>Number(r.requeueCount||0)>0).length,called=rows.filter(r=>r.status==="reserved"&&r.callStatus==="called"),done=rows.filter(r=>r.status==="checkedin"||r.callStatus==="passed"),token=called[0]&&called[0].callToken||"";
-  return `<div><div class="row"><div><div class="title" style="font-size:16px">입장 인원 호출</div><div class="sub">직원 이름 대신 초록색 화면과 인원수만 확인합니다.</div></div><span class="badge ${closed?"cancel":"live"}">${closed?"마감":"운영 중"}</span></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="call-slot-grid">${SLOTS.map(s=>`<button class="${s[0]===time?"active":""} ${isQueueClosed(date,s[0])?"slot-closed":""}" onclick="setCallSlot('${s[0]}')">${s[0]}</button>`).join("")}</div><div class="call-stats"><div class="call-stat"><b>${waiting.length}</b><span>호출 대기${retryWaiting?` · 재대기 ${retryWaiting}`:""}</span></div><div class="call-stat green"><b>${called.length}</b><span>지금 입장</span></div><div class="call-stat"><b>${done.length}</b><span>호출 종료</span></div></div>${called.length?`<div class="call-live-board"><div class="tiny" style="color:inherit">직원 화면과 함께 확인</div><div class="call-number">지금 ${called.length}명 입장</div><div class="call-token-big">확인표시 · ${esc(token)}</div></div>`:`<div class="call-live-board wait"><div class="call-number">${closed?"시간대 운영 마감":"현재 호출 없음"}</div><div class="tiny" style="color:inherit;margin-top:5px">${closed?"놓친 직원은 다음 가능한 시간대로 재대기합니다.":"대기 인원을 확인하고 다음 인원을 호출하세요."}</div></div>`}<div class="call-buttons"><button class="btn green" onclick="callNext(10)" ${waiting.length&&date===todayDate()&&!closed?"":"disabled"}>다음 10명</button><button class="btn green" onclick="callNext(15)" ${waiting.length&&date===todayDate()&&!closed?"":"disabled"}>다음 15명</button><button class="btn green" onclick="callNext(20)" ${waiting.length&&date===todayDate()&&!closed?"":"disabled"}>다음 20명</button></div><div class="btnrow">${called.length?`<button class="btn light full" onclick="closeCurrentCall()">현재 호출 종료</button>`:""}<button class="btn ${closed?"green":"danger"} full" onclick="toggleQueueClosed()">${closed?"시간대 다시 열기":"이 시간대 마감"}</button></div>${date!==todayDate()?`<div class="notice">입장 호출은 오늘 날짜에서만 실행할 수 있습니다.</div>`:""}<div class="call-help"><b>현장 확인 방법</b><br>버튼을 누르면 해당 인원만 초록색 입장표가 열립니다. 담당자는 초록색 화면과 실제 들어오는 사람 수만 확인하고, 이상할 때만 QR을 스캔합니다. 호출을 놓친 직원은 한 번만 맨 뒤로 재대기할 수 있습니다.</div></div>`;
+  const time=st.adminCallSlot,date=st.date,closed=isQueueClosed(date,time),rows=queueRows(date,time),waiting=rows.filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed"),retryWaiting=totalPeople(waiting.filter(r=>Number(r.requeueCount||0)>0)),called=rows.filter(r=>r.status==="reserved"&&r.callStatus==="called"),done=rows.filter(r=>r.status==="checkedin"||r.callStatus==="passed"),waitingPeople=totalPeople(waiting),calledPeople=totalPeople(called),donePeople=totalPeople(done),token=called[0]&&called[0].callToken||"";
+  return `<div><div class="row"><div><div class="title" style="font-size:16px">입장 인원 호출</div><div class="sub">직원 이름 대신 초록색 화면과 인원수만 확인합니다.</div></div><span class="badge ${closed?"cancel":"live"}">${closed?"마감":"운영 중"}</span></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="call-slot-grid">${SLOTS.map(s=>`<button class="${s[0]===time?"active":""} ${isQueueClosed(date,s[0])?"slot-closed":""}" onclick="setCallSlot('${s[0]}')">${s[0]}</button>`).join("")}</div><div class="call-stats"><div class="call-stat"><b>${waitingPeople}</b><span>호출 대기${retryWaiting?` · 재대기 ${retryWaiting}`:""}</span></div><div class="call-stat green"><b>${calledPeople}</b><span>지금 입장</span></div><div class="call-stat"><b>${donePeople}</b><span>호출 종료</span></div></div>${called.length?`<div class="call-live-board"><div class="tiny" style="color:inherit">개인·단체 입장표와 함께 확인</div><div class="call-number">지금 ${calledPeople}명 입장</div><div class="call-token-big">확인표시 · ${esc(token)}</div></div>`:`<div class="call-live-board wait"><div class="call-number">${closed?"시간대 운영 마감":"현재 호출 없음"}</div><div class="tiny" style="color:inherit;margin-top:5px">${closed?"놓친 직원은 다음 가능한 시간대로 재대기합니다.":"대기 인원을 확인하고 다음 인원을 호출하세요."}</div></div>`}<div class="call-buttons"><button class="btn green" onclick="callNext(10)" ${waiting.length&&date===todayDate()&&!closed?"":"disabled"}>다음 10명</button><button class="btn green" onclick="callNext(15)" ${waiting.length&&date===todayDate()&&!closed?"":"disabled"}>다음 15명</button><button class="btn green" onclick="callNext(20)" ${waiting.length&&date===todayDate()&&!closed?"":"disabled"}>다음 20명</button></div><div class="btnrow">${called.length?`<button class="btn light full" onclick="closeCurrentCall()">현재 호출 종료</button>`:""}<button class="btn ${closed?"green":"danger"} full" onclick="toggleQueueClosed()">${closed?"시간대 다시 열기":"이 시간대 마감"}</button></div>${date!==todayDate()?`<div class="notice">입장 호출은 오늘 날짜에서만 실행할 수 있습니다.</div>`:""}<div class="call-help"><b>현장 확인 방법</b><br>버튼을 누르면 대기 순서대로 최대 인원 안에서 호출합니다. 단체는 쪼개지 않고 한 번에 호출하며, 담당자는 초록색 화면과 실제 들어오는 사람 수만 확인합니다. 이상할 때만 QR을 스캔합니다.</div></div>`;
 }
 function cameraPanel(){return `<div><div class="title" style="font-size:16px">QR 체크인 카메라</div><div class="sub">카메라를 켜면 QR 코드를 인식하여 예약자를 자동으로 입장 처리합니다.</div><div class="btnrow"><button class="btn primary full" onclick="startScanner()">카메라 켜기</button></div><div id="scannerArea"></div></div>`}
 function menuPanel(){return `<div><div class="row"><div><div class="title" style="font-size:16px">한 달 메뉴 업로드</div><div class="sub">CSV 양식으로 업로드하면 모든 화면에 반영됩니다.</div></div><button class="btn light small" onclick="downloadTemplate()">양식</button></div><div class="line"></div><input class="file" type="file" accept=".csv,text/csv" onchange="uploadMenu(event)"><div class="notice">권장 열 이름: date, main, menu, note</div></div>`}
-function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)||queueNumberFor(a)-queueNumberFor(b)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약·대기번호·호출 상태입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}<small style="display:block;color:#6b7280">${organizationsForSlot(st.date,s[0]).map(v=>esc(v.name)).join(" · ")}</small></span><b>${c[s[0]]||0} / ${s[1]}</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"")} · ${esc(r.dept)}</div><div class="sub">${esc(r.time)} · 대기 ${String(queueNumberFor(r)).padStart(3,"0")}번 · 행정번호 ${esc(r.emp)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"||r.callStatus==="passed"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":r.callStatus==="called"?"지금입장":r.callStatus==="passed"?"호출지남":isLateReservationStatus(r.status)?"마감후예약":"대기"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
+function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)||queueNumberFor(a)-queueNumberFor(b)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약·대기번호·실제 인원·호출 상태입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}<small style="display:block;color:#6b7280">${organizationsForSlot(st.date,s[0]).map(v=>esc(v.name)).join(" · ")}</small></span><b>${c[s[0]]||0} / ${s[1]}명</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"")} · ${esc(r.dept)}</div><div class="sub">${reservationLabel(r)} · ${partySizeOf(r)}명 · ${esc(r.time)} · 대기 ${String(queueNumberFor(r)).padStart(3,"0")}번 · 행정번호 ${esc(r.emp)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"||r.callStatus==="passed"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":r.callStatus==="called"?"지금입장":r.callStatus==="passed"?"호출지남":isLateReservationStatus(r.status)?"마감후예약":"대기"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">${partySizeOf(r)}명 체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
 function noticePanel(){const list=[...st.notices].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));return `<div><div class="title" style="font-size:16px">공지사항 · 버전업 관리</div><div class="sub">메인 대시보드에 공지와 업데이트 내용을 노출합니다.</div><div class="line"></div><div class="mini-card" style="margin-bottom:12px"><div class="form"><select id="noticeType" class="select"><option>공지</option><option>업데이트</option><option>점검</option><option>안내</option></select><input id="noticeTitle" class="input" placeholder="제목"><textarea id="noticeBody" placeholder="공지 내용 또는 업데이트 내용을 입력해주세요."></textarea><button class="btn primary full" onclick="addNotice()">공지 등록</button></div></div>${list.length?list.map(n=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><span class="notice-tag">${esc(n.type)}</span><div style="font-weight:900;margin-bottom:4px">${esc(n.title)}</div><div class="sub">${esc(n.body)}</div></div><button class="btn danger small" onclick="removeNotice('${n.id}')">삭제</button></div></div>`).join(""):`<div class="mini-card">등록된 공지사항이 없습니다.</div>`}</div>`}
 
 
@@ -948,7 +981,7 @@ function calendarDropdown(selectedDate){
 function openMenuDetail(){const m=menu(st.date);openModal(pretty(st.date)+" 점심 메뉴",`<div class="mini-card"><div style="font-weight:900;font-size:17px">${cleanMain(m.main)?esc(m.main):"오늘의 점심 메뉴"}</div><ul class="menu-list" style="margin-top:10px">${String(m.menu||"").split(/,|\n/).filter(Boolean).map(v=>`<li>${esc(v.trim())}</li>`).join("")}</ul>${m.note?`<div class="notice">${esc(m.note)}</div>`:""}</div>`)}
 function openModal(title,html){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("show")}
 function closeModal(){document.getElementById("modal").classList.remove("show")}
-function rules(){openModal("이용수칙",`<ul class="menu-list"><li>소속 국·기관의 기본시간과 그 이후 시간 중 예약할 수 있습니다.</li><li>예약 후 개인 대기번호를 확인하고, 입장표가 초록색으로 바뀌면 입장합니다.</li><li>회색은 대기, 초록색은 지금 입장, 빨간색은 호출 지남을 뜻합니다.</li><li>첫 호출을 놓치면 한 번만 대기열 맨 뒤로 돌아갈 수 있습니다.</li><li>시간대가 마감됐다면 잔여석이 있는 다음 시간대로 자동 이동합니다.</li><li>호출 알림을 켜면 내 차례에 진동과 알림을 받을 수 있습니다.</li><li>QR은 이상 상황에서만 확인하며 대표 줄서기나 현장 선착순 대기는 하지 않습니다.</li></ul>`)}
+function rules(){openModal("이용수칙",`<ul class="menu-list"><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약할 수 있습니다.</li><li>단체 참여자는 대표자와 같은 국·기관이나 부서가 아니어도 되며 전원이 함께 입장합니다.</li><li>대표자의 기본시간과 그 이후 시간 중 실제 인원만큼 잔여석이 있는 시간을 예약할 수 있습니다.</li><li>예약 후 대기번호를 확인하고, 입장표가 초록색으로 바뀌면 입장합니다.</li><li>회색은 대기, 초록색은 지금 입장, 빨간색은 호출 지남을 뜻합니다.</li><li>첫 호출을 놓치면 한 번만 대기열 맨 뒤로 돌아갈 수 있습니다.</li><li>시간대가 마감됐다면 전체 인원이 들어갈 잔여석이 있는 다음 시간대로 이동합니다.</li><li>호출 알림을 켜면 내 차례에 진동과 알림을 받을 수 있습니다.</li><li>QR은 이상 상황에서만 확인하며 현장 선착순 대기는 하지 않습니다.</li></ul>`)}
 function allergy(){openModal("알레르기 정보",`<ul class="menu-list"><li>난류, 우유, 메밀, 땅콩, 대두, 밀, 고등어, 게, 새우</li><li>돼지고기, 복숭아, 토마토, 아황산류, 호두, 닭고기</li><li>쇠고기, 오징어, 조개류, 잣</li></ul>`)}
 function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
 function applyEditUser(){const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();closeModal();render();toast("소속 정보와 배정시간이 수정되었습니다.")}
@@ -962,7 +995,7 @@ function newCallToken(){const words=["솔잎","한결","새봄","느티","푸른
 async function callNext(size){
   if(st.date!==todayDate())return toast("오늘 날짜에서만 입장 인원을 호출할 수 있습니다.");
   if(isQueueClosed(st.date,st.adminCallSlot))return toast("마감된 시간대는 호출할 수 없습니다.");
-  const date=st.date,time=st.adminCallSlot,rows=queueRows(date,time),active=rows.filter(r=>r.status==="reserved"&&r.callStatus==="called"),waiting=rows.filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed").slice(0,size);
+  const date=st.date,time=st.adminCallSlot,rows=queueRows(date,time),active=rows.filter(r=>r.status==="reserved"&&r.callStatus==="called"),waitingRows=rows.filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed"),waiting=takeWaitingByPeople(waitingRows,size),calledPeople=totalPeople(waiting);
   if(!waiting.length)return toast("호출할 대기자가 없습니다.");
   const token=newCallToken(),batchId=date+"_"+time.replace(":","")+"_"+Date.now();
   if(firebaseOn){
@@ -970,14 +1003,14 @@ async function callNext(size){
       const batch=db.batch(),now=firebase.firestore.FieldValue.serverTimestamp();
       active.forEach(r=>batch.update(db.collection("reservations").doc(r.id),{callStatus:"passed",passedAt:now,updatedAt:now}));
       waiting.forEach(r=>batch.update(db.collection("reservations").doc(r.id),{callStatus:"called",callToken:token,callBatchId:batchId,calledAt:now,updatedAt:now}));
-      await batch.commit();toast(`${time} 대기자 ${waiting.length}명을 호출했습니다.`);
+      await batch.commit();toast(`${time} 대기자 ${calledPeople}명을 호출했습니다.`);
     }catch(e){console.error(e);toast("입장 호출 중 오류가 발생했습니다.")}
     return;
   }
   active.forEach(r=>{r.callStatus="passed";r.passedAt=Date.now()});
   waiting.forEach(r=>{r.callStatus="called";r.callToken=token;r.callBatchId=batchId;r.calledAt=Date.now()});
   waiting.filter(r=>st.user&&r.emp===st.user.emp).forEach(notifyCall);
-  saveLocal();render();toast(`${time} 대기자 ${waiting.length}명을 호출했습니다.`);
+  saveLocal();render();toast(`${time} 대기자 ${calledPeople}명을 호출했습니다.`);
 }
 async function closeCurrentCall(){
   if(st.date!==todayDate())return toast("오늘 날짜의 호출만 종료할 수 있습니다.");
@@ -996,7 +1029,7 @@ async function addNotice(){const type=document.getElementById("noticeType").valu
 async function removeNotice(idv){if(firebaseOn){try{await db.collection("notices").doc(idv).delete();toast("공지사항이 삭제되었습니다.")}catch(e){console.error(e);toast("삭제 중 오류가 발생했습니다.")}}else{st.notices=st.notices.filter(n=>n.id!==idv);saveLocal();render();toast("공지사항이 삭제되었습니다.")}}
 function csv(rows){return "\uFEFF"+rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n")}
 function download(name,text){const blob=new Blob([text],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
-function exportCsv(){const rows=[["날짜","입장시각","대기번호","호출상태","국·기관","부서","이름","행정번호","예약상태","메인","메뉴","예약번호"]];st.reservations.filter(r=>r.date===st.date).forEach(r=>{const org=r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"";rows.push([r.date,r.time,queueNumberFor(r),r.callStatus||"waiting",org,r.dept,r.name,r.emp,r.status,r.main,r.menu,r.code])});download("서구밥상_"+st.date+".csv",csv(rows));toast("CSV를 다운로드했습니다.")}
+function exportCsv(){const rows=[["날짜","입장시각","대기번호","호출상태","예약유형","예약인원","국·기관","부서","대표자","행정번호","예약상태","메인","메뉴","예약번호"]];st.reservations.filter(r=>r.date===st.date).forEach(r=>{const org=r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"";rows.push([r.date,r.time,queueNumberFor(r),r.callStatus||"waiting",reservationLabel(r),partySizeOf(r),org,r.dept,r.name,r.emp,r.status,r.main,r.menu,r.code])});download("서구밥상_"+st.date+".csv",csv(rows));toast("CSV를 다운로드했습니다.")}
 function downloadTemplate(){const y=new Date().getFullYear(),m=String(new Date().getMonth()+1).padStart(2,"0"),rows=[["date","main","menu","note"]];for(let d=1;d<=31;d++)rows.push([`${y}-${m}-${String(d).padStart(2,"0")}`,"","잡곡밥, 된장국, 제육볶음, 시금치무침, 김치",""]);download("서구밥상_메뉴업로드_양식.csv",csv(rows));toast("메뉴 양식을 내려받았습니다.")}
 function parseCSV(text){text=text.replace(/^\uFEFF/,"");let rows=[],row=[],cell="",quote=false;for(let i=0;i<text.length;i++){const ch=text[i],nx=text[i+1];if(ch==='"'){if(quote&&nx==='"'){cell+='"';i++}else quote=!quote}else if(ch===','&&!quote){row.push(cell.trim());cell=""}else if((ch==='\n'||ch==='\r')&&!quote){if(ch==='\r'&&nx==='\n')i++;row.push(cell.trim());if(row.some(v=>v))rows.push(row);row=[];cell=""}else cell+=ch}row.push(cell.trim());if(row.some(v=>v))rows.push(row);return rows}
 function normDate(v){const m=String(v||"").trim().match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/);return m?`${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`:""}
