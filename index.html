@@ -348,7 +348,7 @@ const ORG_GROUPS=[
 // 실제 운영 전에는 false로 바꾸면 기존 마감 로직이 다시 살아납니다.
 const BETA_ALLOW_AFTER_DEADLINE = true;
 // Firebase Console > Cloud Messaging > Web Push 인증서의 공개 VAPID 키를 넣으면
-// 앱이 완전히 닫힌 상태의 FCM 푸시 토큰 발급 안정성이 높아집니다.
+// 프로젝트의 공개 VAPID 키와 서버 등록이 완료되어야 앱을 닫은 뒤에도 알림을 받을 수 있습니다.
 const PUSH_VAPID_KEY = "";
 const PUSH_REGISTER_ENDPOINT = "https://asia-northeast3-seogu-bapsang.cloudfunctions.net/registerPushToken";
 let db=null;
@@ -359,6 +359,10 @@ let unsubPenalties=null;
 let unsubQueueControls=null;
 let ticketClockTimer=null;
 let messaging=null;
+let callNotificationRegistration=null;
+let callWorkerPending=null;
+let pushSetupPending=null;
+let pushConnection={mode:"idle",emp:"",reason:""};
 let reservationSnapshotReady=false;
 
 let st={
@@ -431,7 +435,7 @@ const views={
       <div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약 취소</button><button class="btn soft full" onclick="toggleHistory()">지난 내역</button></div>
     </div>${st.showHistory?historyView():""}`
   },
-  more(){const org=userOrganization(),userText=st.user?`${esc(st.user.name)} · ${org?esc(org.name)+" · ":""}${esc(st.user.dept)} · ${esc(st.user.emp)}`:"미등록",pushOn=notificationPermission()==="granted";return `<div class="card"><div class="title">설정</div><div class="mini-card"><div style="font-weight:900">내 정보</div><div class="sub" style="margin-top:6px">${userText}</div><div class="btnrow"><button class="btn light full" onclick="editUser()">정보수정</button><button class="btn light full" onclick="logout()">로그아웃</button></div></div><div class="push-card"><div style="font-weight:900">🔔 입장 호출 알림</div><div class="sub" style="margin-top:5px">내 차례가 되면 진동과 알림으로 알려드립니다.</div><span class="push-state ${pushOn?"on":""}">${pushOn?"알림 허용됨":"알림 꺼짐"}</span><button class="btn ${pushOn?"light":"primary"} full" style="margin-top:10px" onclick="enablePushNotifications()">${pushOn?"알림 다시 연결":"호출 알림 켜기"}</button></div><div class="btnrow"><button class="btn soft full" onclick="rules()">이용 안내</button><button class="btn light full" onclick="unlockAdmin()">관리자 모드</button></div>${!firebaseOn?`<div class="btnrow"><button class="btn light full" onclick="resetLocal()">로컬 초기화</button></div><div class="notice">Firebase 연결에 실패하면 로컬 데모 데이터로 표시됩니다.</div>`:""}</div>${st.adminUnlocked?adminView():""}`}
+  more(){const org=userOrganization(),userText=st.user?`${esc(st.user.name)} · ${org?esc(org.name)+" · ":""}${esc(st.user.dept)} · ${esc(st.user.emp)}`:"미등록",push=pushConnectionView();return `<div class="card"><div class="title">설정</div><div class="mini-card"><div style="font-weight:900">내 정보</div><div class="sub" style="margin-top:6px">${userText}</div><div class="btnrow"><button class="btn light full" onclick="editUser()">정보수정</button><button class="btn light full" onclick="logout()">로그아웃</button></div></div><div class="push-card"><div style="font-weight:900">🔔 입장 호출 알림</div><div class="sub" style="margin-top:5px">${esc(push.detail)}</div><span class="push-state ${push.on?"on":""}" role="status">${esc(push.label)}</span><button class="btn ${push.on?"light":"primary"} full" style="margin-top:10px" onclick="enablePushNotifications()" ${push.busy?"disabled":""}>${push.busy?"연결 확인 중…":push.on?"알림 다시 연결":"호출 알림 켜기"}</button></div><div class="btnrow"><button class="btn soft full" onclick="rules()">이용 안내</button><button class="btn light full" onclick="unlockAdmin()">관리자 모드</button></div>${!firebaseOn?`<div class="btnrow"><button class="btn light full" onclick="resetLocal()">로컬 초기화</button></div><div class="notice">Firebase 연결에 실패하면 로컬 데모 데이터로 표시됩니다.</div>`:""}</div>${st.adminUnlocked?adminView():""}`}
 };
 function slotRow(s,date,org,assigned,partySize,blocked){
   const time=s[0],cap=s[1],rem=remain(date,time),used=cap-rem,eligible=isEligibleTime(time,date,org),overflow=isOverflowChoice(time,date,org),available=!blocked&&canBookTime(date,time,org,partySize),active=available&&st.slot===time,stt=status(rem,cap),shared=overflowRemain(date,time);
@@ -468,7 +472,8 @@ async function init(){
   render();
   updateLoginState();
   if(!ticketClockTimer)ticketClockTimer=setInterval(updateTicketClock,1000);
-  if(notificationPermission()==="granted")setupPushMessaging(false);
+  if("serviceWorker" in navigator)ensureCallWorker().catch(()=>{});
+  if(notificationPermission()==="granted"&&st.user)setupPushMessaging(false);
 }
 
 function setModeBadge(){const b=document.getElementById("modeBadge");if(!b)return;b.textContent=firebaseOn?"실시간":"데모";b.className="badge "+(firebaseOn?"live":"demo")}
@@ -492,34 +497,100 @@ function queueNumberFor(r){if(Number(r.queueNumber)>0)return Number(r.queueNumbe
 function liveClockText(){return new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false})}
 function updateTicketClock(){const el=document.getElementById("ticketClock");if(el)el.textContent=liveClockText()}
 function notificationPermission(){return typeof Notification==="undefined"?"unsupported":Notification.permission}
+function pushConnectionView(){
+  const permission=notificationPermission(),state=pushConnection.emp===(st.user&&st.user.emp)?pushConnection:{mode:"idle"};
+  if(permission==="unsupported"||!("serviceWorker" in navigator))return{label:"알림 미지원",detail:"이 브라우저에서는 알림을 사용할 수 없습니다. 내 입장표에서 호출을 확인해주세요."};
+  if(permission==="denied")return{label:"알림 차단됨",detail:"브라우저의 사이트 설정에서 알림을 허용한 뒤 다시 연결해주세요."};
+  if(state.mode==="connecting")return{label:"연결 확인 중",detail:"이 기기의 알림 연결 상태를 확인하고 있습니다.",busy:true};
+  if(permission!=="granted")return{label:"알림 꺼짐",detail:"호출 알림을 켜고 브라우저의 알림 허용을 선택해주세요."};
+  if(state.mode==="push")return{label:"백그라운드 알림 등록 완료",detail:"이 기기에 호출 알림을 보내도록 등록했습니다. 실제 수신은 기기와 브라우저의 알림 설정에 따라 달라집니다.",on:true};
+  if(state.mode==="local")return{label:state.reason==="failed"?"앱 실행 중 알림 · 추가 연결 실패":"앱 실행 중 알림",detail:state.reason==="failed"?"앱을 열어둔 동안 호출을 알려드립니다. 앱을 닫은 뒤의 알림 연결은 실패했으니 다시 연결해주세요.":"앱을 열어둔 동안 호출을 알려드립니다. 앱을 닫은 뒤의 알림은 아직 연결되지 않았습니다.",on:true};
+  return{label:state.mode==="error"?"알림 연결 실패":"알림 허용 · 연결 확인 필요",detail:"알림 권한만으로는 연결이 완료되지 않습니다. 아래 버튼으로 다시 연결해주세요."};
+}
+function notificationTimeout(promise,ms=12000){
+  let timer;
+  return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("NOTIFICATION_TIMEOUT")),ms)})]).finally(()=>clearTimeout(timer));
+}
+async function ensureCallWorker(){
+  if(callNotificationRegistration&&callNotificationRegistration.active&&callNotificationRegistration.active.state==="activated")return callNotificationRegistration;
+  if(callWorkerPending)return callWorkerPending;
+  callWorkerPending=(async()=>{
+    const registration=await notificationTimeout(navigator.serviceWorker.register("./firebase-messaging-sw.js",{scope:"./"}));
+    if(!registration.active||registration.active.state!=="activated"){
+      const worker=registration.installing||registration.waiting||registration.active;
+      if(!worker)throw new Error("NO_NOTIFICATION_WORKER");
+      let changed;
+      try{
+        await notificationTimeout(new Promise((resolve,reject)=>{
+          changed=()=>{if(worker.state==="activated")resolve();else if(worker.state==="redundant")reject(new Error("NOTIFICATION_WORKER_FAILED"))};
+          worker.addEventListener("statechange",changed);changed();
+        }));
+      }finally{worker.removeEventListener("statechange",changed)}
+    }
+    callNotificationRegistration=registration;
+    return registration;
+  })();
+  try{return await callWorkerPending}finally{callWorkerPending=null}
+}
 async function enablePushNotifications(){await setupPushMessaging(true)}
 async function setupPushMessaging(requestPermission=false){
-  if(!st.user)return toast("직원 정보를 먼저 등록해주세요.");
-  if(!("serviceWorker" in navigator)||typeof Notification==="undefined")return toast("이 브라우저는 호출 알림을 지원하지 않습니다.");
+  if(pushSetupPending)return pushSetupPending;
+  pushSetupPending=connectCallNotifications(requestPermission);
+  try{return await pushSetupPending}finally{pushSetupPending=null}
+}
+async function connectCallNotifications(requestPermission){
+  const user=st.user&&{...st.user};
+  if(!user){if(requestPermission)toast("직원 정보를 먼저 등록해주세요.");return}
+  if(!("serviceWorker" in navigator)||notificationPermission()==="unsupported"){if(requestPermission)toast("이 브라우저는 호출 알림을 지원하지 않습니다.");return}
+  let localReady=false;
+  pushConnection={mode:"connecting",emp:user.emp,reason:""};render();
+  // Older versions stored success before registration. Never reuse that flag as proof of connection.
+  localStorage.removeItem("sg_push_enabled");
   try{
     let permission=Notification.permission;
-    if(requestPermission&&permission!=="granted")permission=await Notification.requestPermission();
-    if(permission!=="granted")return toast("알림 권한이 허용되지 않았습니다.");
-    const registration=await navigator.serviceWorker.register("./firebase-messaging-sw.js",{scope:"./"});
-    localStorage.setItem("sg_push_enabled","1");
-    if(firebaseOn&&PUSH_VAPID_KEY&&firebase.messaging&&await firebase.messaging.isSupported()){
-      messaging=messaging||firebase.messaging();
-      const options={serviceWorkerRegistration:registration,vapidKey:PUSH_VAPID_KEY};
-      const token=await messaging.getToken(options);
-      if(token){
-        const response=await fetch(PUSH_REGISTER_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token,emp:st.user.emp,name:st.user.name,orgKey:st.user.orgKey||"",dept:st.user.dept})});
-        if(!response.ok)throw new Error("PUSH_REGISTER_FAILED");
-      }
-      if(!messaging.__sgListener){messaging.onMessage(payload=>{const data=payload.data||{},note=payload.notification||{};showCallNotification(note.title||data.title||"서구밥상 입장 호출",note.body||data.body||"지금 입장하세요.",data.url||"./?open=my")});messaging.__sgListener=true}
+    if(requestPermission&&permission==="default")permission=await Notification.requestPermission();
+    if(permission!=="granted"){
+      pushConnection={mode:"idle",emp:user.emp,reason:""};
+      if(requestPermission)toast(permission==="denied"?"브라우저 사이트 설정에서 알림을 허용해주세요.":"알림 권한이 허용되지 않았습니다.");
+      return;
     }
-    render();toast("입장 호출 알림이 연결되었습니다.");
-  }catch(e){console.error(e);toast("알림 연결 중 오류가 발생했습니다. 브라우저 설정을 확인해주세요.")}
+    const registration=await ensureCallWorker();localReady=true;
+    if(!st.user||st.user.emp!==user.emp)return;
+    pushConnection={mode:"local",emp:user.emp,reason:"unconfigured"};
+    if(firebaseOn&&PUSH_VAPID_KEY&&typeof firebase.messaging==="function"&&await firebase.messaging.isSupported()){
+      messaging=messaging||firebase.messaging();
+      const token=await notificationTimeout(messaging.getToken({serviceWorkerRegistration:registration,vapidKey:PUSH_VAPID_KEY}));
+      if(!token)throw new Error("PUSH_TOKEN_EMPTY");
+      if(!st.user||st.user.emp!==user.emp)return;
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+      try{
+        const response=await fetch(PUSH_REGISTER_ENDPOINT,{method:"POST",signal:controller.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({token,emp:user.emp,name:user.name,orgKey:user.orgKey||"",dept:user.dept})});
+        if(!response.ok)throw new Error("PUSH_REGISTER_FAILED");
+        const result=await response.json();
+        if(result.ok!==true)throw new Error("PUSH_REGISTER_UNCONFIRMED");
+      }finally{clearTimeout(timer)}
+      if(!st.user||st.user.emp!==user.emp)return;
+      pushConnection={mode:"push",emp:user.emp,reason:""};
+      // Foreground calls are displayed by the reservation snapshot listener only.
+      // Also displaying onMessage would notify twice for the same call.
+    }
+    if(requestPermission)toast(pushConnection.mode==="push"?"백그라운드 호출 알림이 등록되었습니다.":"앱 실행 중 호출 알림이 켜졌습니다. 앱을 열어두세요.");
+  }catch(error){
+    console.warn("Call notification connection failed.");
+    if(st.user&&st.user.emp===user.emp){
+      pushConnection={mode:localReady?"local":"error",emp:user.emp,reason:"failed"};
+      if(requestPermission)toast(localReady?"앱 실행 중 알림만 사용 가능합니다. 추가 연결을 다시 시도해주세요.":"알림 연결에 실패했습니다. 다시 연결해주세요.");
+    }
+  }finally{render()}
 }
 async function showCallNotification(title,body,url="./?open=my"){
-  if(notificationPermission()!=="granted")return;
-  try{const registration=await navigator.serviceWorker.ready;await registration.showNotification(title,{body,icon:"./icon.png",badge:"./icon.png",tag:"seogu-entry-call",renotify:true,vibrate:[250,120,250,120,400],data:{url}})}catch(e){console.error(e)}
+  if(notificationPermission()!=="granted"||!("serviceWorker" in navigator))return;
+  try{const registration=await ensureCallWorker();await registration.showNotification(title,{body,icon:"./icon-192.png",badge:"./icon-192.png",tag:"seogu-entry-call",renotify:true,vibrate:[250,120,250,120,400],data:{url}})}catch(error){console.warn("Call notification could not be displayed.")}
 }
 function notifyCall(r){
+  if(!st.user||r.emp!==st.user.emp||r.date!==todayDate()||r.status!=="reserved"||r.callStatus!=="called")return;
+  // Once background push is registered, its service worker handles hidden tabs.
+  if(pushConnection.mode==="push"&&pushConnection.emp===st.user.emp&&document.visibilityState==="hidden")return;
   if(navigator.vibrate)navigator.vibrate([250,120,250,120,400]);
   showCallNotification("🍚 지금 입장하세요",`${r.time} · 대기번호 ${String(queueNumberFor(r)).padStart(3,"0")}번 · ${r.callToken||"초록 입장표를 확인하세요"}`);
 }
@@ -540,7 +611,7 @@ function slotIndex(time){return SLOTS.findIndex(v=>v[0]===time)}
 function isEligibleTime(time,date=todayDate(),org=userOrganization()){if(!org)return false;const assigned=assignedSlot(org.key,date);return slotIndex(time)>=slotIndex(assigned)}
 function isOverflowChoice(time,date=todayDate(),org=userOrganization()){return !!org&&isEligibleTime(time,date,org)&&time!==assignedSlot(org.key,date)}
 function overflowQuotaReleased(){const now=new Date(),release=new Date();release.setHours(OVERFLOW_RELEASE_HOUR,OVERFLOW_RELEASE_MINUTE,0,0);return now>=release}
-function saveLogin(){const name=document.getElementById("name").value.trim(),orgKey=document.getElementById("org").value,dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim(),org=organizationByKey(orgKey);if(!name)return toast("이름을 입력해주세요.");if(!org)return toast("국·기관을 선택해주세요.");if(!dept||!org.departments.includes(dept))return toast("소속 부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();updateLoginState();render();toast("직원 정보와 배정시간이 저장되었습니다.")}
+function saveLogin(){const name=document.getElementById("name").value.trim(),orgKey=document.getElementById("org").value,dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim(),org=organizationByKey(orgKey);if(!name)return toast("이름을 입력해주세요.");if(!org)return toast("국·기관을 선택해주세요.");if(!dept||!org.departments.includes(dept))return toast("소속 부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();updateLoginState();render();toast("직원 정보와 배정시간이 저장되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
 function go(tab){if(tab==="reserve")tab="home";st.tab=tab;if(tab==="home")st.date=todayDate();if(tab!=="more"){st.adminUnlocked=false;stopScanner()}render()}
 function shift(days){const d=new Date(st.date+"T00:00:00");d.setDate(d.getDate()+days);st.date=fmt(d);if(firebaseOn){listenReservations();listenQueueControls()}render()}
 function quick(n){const d=new Date();d.setDate(d.getDate()+n);st.date=fmt(d);if(firebaseOn){listenReservations();listenQueueControls()}render()}
@@ -874,31 +945,61 @@ async function markNoShowFirebase(idv){
   }catch(e){console.error(e);toast(String(e.message).includes("CHECKED")?"이미 입장 처리된 예약입니다.":"노쇼 처리 중 오류가 발생했습니다.")}
 }
 
+// Shared by manual and QR entry; Firebase callers validate fresh data inside a transaction.
+function checkinValidationMessage(r,qrText=null,penalty=null){
+  if(!r)return "예약 정보를 찾지 못했습니다.";
+  if(r.date!==todayDate())return "오늘 날짜의 예약만 입장 처리할 수 있습니다.";
+  if(r.status==="checkedin")return `${r.name}님은 이미 입장 처리되었습니다.`;
+  if(r.status==="cancelled")return `${r.name}님은 취소된 예약입니다.`;
+  if(r.status==="noshow")return `${r.name}님은 노쇼 처리된 예약입니다. 관리자 확인이 필요합니다.`;
+  // Manual entry retains the existing demo workflow for recorded late reservations.
+  if(r.status!=="reserved"&&!isLateReservationStatus(r.status))return "입장 처리할 수 없는 예약 상태입니다.";
+  if(qrText!==null){
+    if(r.status!=="reserved"||r.qrEligible===false)return "QR 입장을 사용할 수 없는 예약입니다. 안내자에게 문의해주세요.";
+    if(!r.code||r.code!==qrText)return "현재 예약의 QR 코드와 일치하지 않습니다.";
+    if(r.callStatus!=="called")return r.callStatus==="passed"?`${r.name}님의 호출이 지났습니다. 안내자 확인이 필요합니다.`:`${r.name}님은 아직 입장 호출 전입니다.`;
+  }
+  if(penalty&&penalty.blockDate===r.date)return `${r.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;
+  return "";
+}
+async function completeReservationCheckin(idv,qrText=null){
+  if(firebaseOn){
+    return db.runTransaction(async tx=>{
+      const ref=db.collection("reservations").doc(idv),snap=await tx.get(ref);
+      const r=snap.exists?snap.data():null;
+      const invalid=checkinValidationMessage(r,qrText);
+      if(invalid)return {error:invalid};
+      const penaltySnap=await tx.get(db.collection("penalties").doc(r.emp));
+      const blocked=checkinValidationMessage(r,qrText,penaltySnap.exists?penaltySnap.data():null);
+      if(blocked)return {error:blocked};
+      tx.update(ref,{status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      return {reservation:r};
+    });
+  }
+  const r=st.reservations.find(x=>x.id===idv);
+  const invalid=checkinValidationMessage(r,qrText,r&&st.penalties[r.emp]);
+  if(invalid)return {error:invalid};
+  r.status="checkedin";saveLocal();render();
+  return {reservation:r};
+}
 async function checkin(idv){
-  const current=st.reservations.find(x=>x.id===idv),people=partySizeOf(current);
-  if(firebaseOn){try{await db.collection("reservations").doc(idv).update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});toast(`${people}명 입장 처리 완료`)}catch(e){console.error(e);toast("입장 처리 중 오류가 발생했습니다.")}return;}
-  const r=current;if(!r)return;if(r.status==="checkedin")return toast("이미 입장 처리되었습니다.");r.status="checkedin";saveLocal();render();toast(`${people}명 입장 처리 완료`)
+  try{
+    const result=await completeReservationCheckin(idv);
+    toast(result.error||`${partySizeOf(result.reservation)}명 입장 처리 완료`);
+  }catch(e){console.error(e);toast("입장 처리 중 오류가 발생했습니다. 연결 상태를 확인한 후 다시 시도해주세요.")}
 }
 async function checkinByCode(text){
   if(!text)return "QR 정보가 없습니다.";
-  const parts=String(text).split("|");
-  if(firebaseOn&&parts.length>=4){
-    const idv=docId(parts[1],parts[3]);
-    const ref=db.collection("reservations").doc(idv);
-    const snap=await ref.get();
-    if(!snap.exists)return"예약 정보를 찾지 못했습니다.";
-    const r=snap.data();
-    if(r.status==="noshow")return `${r.name}님은 노쇼 처리된 예약입니다. 다음날 예약 제한 대상입니다.`;
-    if(r.status==="checkedin")return `${r.name}님은 이미 입장 처리되었습니다.`;
-    if(r.callStatus!=="called")return r.callStatus==="passed"?`${r.name}님의 호출이 지났습니다. 안내자 확인이 필요합니다.`:`${r.name}님은 아직 입장 호출 전입니다.`;
-    if(st.penalties[r.emp]&&st.penalties[r.emp].blockDate===r.date)return `${r.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;
-    await ref.update({status:"checkedin",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  // Date and employee number locate the record; the full stored code must also match.
+  const qrText=String(text),parts=qrText.split("|");
+  if(parts.length!==4||parts[0]!=="SGMEAL"||!/^\d{4}-\d{2}-\d{2}$/.test(parts[1])||!/^\d{2}:\d{2}$/.test(parts[2])||!/^\d{4}$/.test(parts[3]))return "서구밥상 예약 QR 코드가 아닙니다.";
+  try{
+    const result=await completeReservationCheckin(docId(parts[1],parts[3]),qrText);
+    if(result.error)return result.error;
+    const r=result.reservation;
     return `${r.name}님 ${partySizeOf(r)}명 입장 처리 완료: ${r.time}`;
-  }
-  const found=st.reservations.find(r=>r.code===text)||(parts.length>=4?st.reservations.find(r=>r.date===parts[1]&&r.time===parts[2]&&r.emp===parts[3]&&r.status!=="cancelled"):null);
-  if(!found)return"예약 정보를 찾지 못했습니다.";if(found.status==="noshow")return `${found.name}님은 노쇼 처리된 예약입니다. 다음날 예약 제한 대상입니다.`;if(found.status==="checkedin")return `${found.name}님은 이미 입장 처리되었습니다.`;if(found.callStatus!=="called")return found.callStatus==="passed"?`${found.name}님의 호출이 지났습니다. 안내자 확인이 필요합니다.`:`${found.name}님은 아직 입장 호출 전입니다.`;if(st.penalties[found.emp]&&st.penalties[found.emp].blockDate===found.date)return `${found.name}님은 노쇼 제한 대상입니다. 관리자 확인이 필요합니다.`;found.status="checkedin";saveLocal();render();return `${found.name}님 ${partySizeOf(found)}명 입장 처리 완료: ${found.time}`;
+  }catch(e){console.error(e);return "입장 처리 중 오류가 발생했습니다. 연결 상태를 확인한 후 다시 시도해주세요."}
 }
-
 
 
 function historyView(){const list=st.reservations.filter(r=>st.user&&r.emp===st.user.emp).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));return `<div class="card"><div class="row"><div class="title" style="margin:0">예약 내역</div><button class="btn light small" onclick="toggleHistory()">닫기</button></div><div class="line"></div>${list.map(r=>`<div class="reservation-item"><div class="row"><div><div style="font-weight:900">${pretty(r.date)} ${esc(r.time)}</div><div class="sub">${reservationLabel(r)} · ${partySizeOf(r)}명 · ${esc(r.place)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="cancelled"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="cancelled"?"취소":"예약"}</span></div></div>`).join("")}</div>`}
@@ -918,7 +1019,7 @@ function openModal(title,html){document.getElementById("modalTitle").textContent
 function closeModal(){document.getElementById("modal").classList.remove("show")}
 function rules(){openModal("이용 안내",`<ul class="menu-list"><li>입장 시간은 ${SLOTS.map(v=>v[0]).join(" · ")} 5타임이며, 타임마다 ${SLOTS[0][1]}명까지 입장합니다.</li><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약할 수 있습니다.</li><li>단체 참여자는 대표자와 같은 국·기관이나 부서가 아니어도 되며 전원이 함께 입장합니다.</li><li>대표자의 기본시간과 그 이후 시간 중 실제 인원만큼 잔여석이 있는 시간을 예약할 수 있습니다.</li><li>예약 후 대기번호를 확인하고, 입장표가 초록색으로 바뀌면 입장합니다.</li><li>회색은 대기, 초록색은 지금 입장, 빨간색은 호출 지남을 뜻합니다.</li><li>첫 호출을 놓치면 한 번만 대기열 맨 뒤로 돌아갈 수 있습니다.</li><li>시간대가 마감됐다면 전체 인원이 들어갈 잔여석이 있는 다음 시간대로 이동합니다.</li><li>호출 알림을 켜면 내 차례에 진동과 알림을 받을 수 있습니다.</li><li>QR은 이상 상황에서만 확인하며 현장 선착순 대기는 하지 않습니다.</li></ul>`)}
 function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
-function applyEditUser(){const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();closeModal();render();toast("소속 정보와 배정시간이 수정되었습니다.")}
+function applyEditUser(){const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();closeModal();render();toast("소속 정보와 배정시간이 수정되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
 function logout(){st.user=null;localStorage.removeItem("sg_real_user");populateOrganizationSelect("org","");populateDeptSelect("org","dept","");updateLoginState();render();toast("로그아웃되었습니다.")}
 function toggleHistory(){st.showHistory=!st.showHistory;render()}
 function unlockAdmin(){const pw=prompt("관리자 코드를 입력해주세요. (데모: 1234)");if(pw===null)return;if(pw==="1234"){st.adminUnlocked=true;st.adminTab="call";st.adminCallSlot=st.adminCallSlot||SLOTS[0][0];render();toast("입장 호출 화면이 열렸습니다.")}else toast("관리자 코드가 올바르지 않습니다.")}

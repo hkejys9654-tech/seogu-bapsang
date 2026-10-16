@@ -1,4 +1,4 @@
-    {
+{
   "name": "서구밥상",
   "short_name": "서구밥상",
   "description": "구청 구내식당 입장 예약 앱",
@@ -13,13 +13,13 @@
       "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "./icon.png",
@@ -29,4 +29,3 @@
     }
   ]
 }
-    
