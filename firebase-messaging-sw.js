@@ -1,9 +1,53 @@
 /* 서구밥상 알림 서비스 워커
- * - 앱이 백그라운드 탭에 있을 때 화면 알림을 표시합니다.
- * - Firebase Cloud Function이 배포되면 앱이 닫혀 있어도 FCM 알림을 받습니다.
+ * 서버가 보낸 호출을 화면을 잠그거나 앱 화면을 닫은 상태에서도 표시합니다.
+ * 기기의 알림 허용과 인터넷 연결이 필요합니다.
  */
 self.addEventListener("install",()=>self.skipWaiting());
 self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));
+const pendingCallKeys=new Set(),displayedCallKeys=new Set();
+
+function currentCallPayload(data){
+  // During rollout, an older sender may omit expiry. A supplied expiry must be valid.
+  if(!Object.prototype.hasOwnProperty.call(data,"expiresAt"))return true;
+  if(typeof data.expiresAt!=="number"&&(typeof data.expiresAt!=="string"||!/^\d+$/.test(data.expiresAt)))return false;
+  const expiry=Number(data.expiresAt);
+  return Number.isSafeInteger(expiry)&&expiry>Date.now();
+}
+
+async function displayBackgroundCall(payload){
+  // FCM displays notification payloads itself. Our server sends data-only calls.
+  if(!payload||payload.notification)return;
+  const data=payload.data||{};
+  if(!currentCallPayload(data))return;
+  const callKey=typeof data.reservationId==="string"&&data.reservationId&&typeof data.callBatchId==="string"&&data.callBatchId?`${data.reservationId}:${data.callBatchId}`:"";
+  if(callKey&&(pendingCallKeys.has(callKey)||displayedCallKeys.has(callKey)))return;
+  if(callKey)pendingCallKeys.add(callKey);
+  try{
+    if(callKey&&typeof self.registration.getNotifications==="function"){
+      try{
+        const visible=await self.registration.getNotifications({tag:"seogu-entry-call"});
+        if(visible.some(notification=>notification.data?.callKey===callKey))return;
+      }catch(error){/* A notification-list failure must not hide a new call. */}
+    }
+    // The notification lookup can yield; don't display a call that expired meanwhile.
+    if(!currentCallPayload(data))return;
+    await self.registration.showNotification(data.title||"서구밥상 입장 호출",{
+      body:data.body||"지금 입장하세요.",
+      icon:"./icon-192.png",
+      badge:"./icon-192.png",
+      tag:"seogu-entry-call",
+      renotify:true,
+      vibrate:[250,120,250,120,400],
+      data:{url:data.url||"./?open=my",callKey}
+    });
+    if(callKey){
+      displayedCallKeys.add(callKey);
+      if(displayedCallKeys.size>100)displayedCallKeys.delete(displayedCallKeys.values().next().value);
+    }
+  }finally{
+    if(callKey)pendingCallKeys.delete(callKey);
+  }
+}
 
 // Register before Firebase so tapping a call always opens this app's ticket.
 self.addEventListener("notificationclick",event=>{
@@ -40,18 +84,7 @@ try{
     appId:"1:335336990084:web:899e3f4d3532ac4e2329d1"
   });
   const messaging=firebase.messaging();
-  messaging.onBackgroundMessage(payload=>{
-    const data=payload.data||{},notification=payload.notification||{};
-    return self.registration.showNotification(notification.title||data.title||"서구밥상 입장 호출",{
-      body:notification.body||data.body||"지금 입장하세요.",
-      icon:"./icon-192.png",
-      badge:"./icon-192.png",
-      tag:"seogu-entry-call",
-      renotify:true,
-      vibrate:[250,120,250,120,400],
-      data:{url:data.url||"./?open=my"}
-    });
-  });
+  messaging.onBackgroundMessage(displayBackgroundCall);
 }catch(error){
   console.warn("FCM background messaging is not available in this browser.",error);
 }
