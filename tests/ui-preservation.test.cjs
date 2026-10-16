@@ -1,0 +1,23 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const html=fs.readFileSync(process.env.BAPSANG_UI_SOURCE||path.join(__dirname,'../index.html'),'utf8');
+function functionSource(name){const match=new RegExp('^(?:async )?function '+name+'\\(','m').exec(html);assert.ok(match,name+' exists');const tail=html.slice(match.index),next=/\n(?:async )?function \w+\(/.exec(tail);return next?tail.slice(0,next.index):tail.slice(0,tail.indexOf('</script>'))}
+function context(extra={}){const ctx={console:{warn(){},error(){}},setTimeout:fn=>fn(),clearTimeout(){},cancelAnimationFrame(){},toast(){},render(){},...extra};vm.createContext(ctx);vm.runInContext('let uiNoticeDraft=null,uiNoticeSaving=false,uiScannerGeneration=0,uiScannerPending=false,uiStorageWarningShown=false;',ctx);return ctx}
+function install(ctx,names){vm.runInContext(names.map(functionSource).join('\n'),ctx)}
+function scannerHarness(){
+  let resolve,reject,requests=0,stopped=0,loops=0;const nodes={};
+  const area={isConnected:true,contains:node=>node===nodes.qrVideo,set innerHTML(value){if(value){nodes.qrVideo={srcObject:null,play:async()=>{}};nodes.scanResult={textContent:''}}else{delete nodes.qrVideo;delete nodes.scanResult}}};
+  nodes.scannerArea=area;
+  const stream={getTracks:()=>[{stop(){stopped++}}]};
+  const ctx=context({st:{scanStream:null,scanTimer:null},jsQR(){},scanLoop(){loops++},document:{getElementById:id=>nodes[id]||null},navigator:{mediaDevices:{getUserMedia(){requests++;return new Promise((a,b)=>{resolve=a;reject=b})}}}});
+  install(ctx,['startScanner','stopScanner']);
+  return{ctx,area,nodes,stream,resolve:()=>resolve(stream),reject:()=>reject(Error('denied')),stats:()=>({requests,stopped,loops})};
+}
+test('camera granted after leaving its page is stopped and never attached',async()=>{const h=scannerHarness();const pending=h.ctx.startScanner();h.ctx.stopScanner();h.area.isConnected=false;delete h.nodes.scannerArea;h.resolve();await pending;assert.equal(h.ctx.st.scanStream,null);assert.deepEqual(h.stats(),{requests:1,stopped:1,loops:0})});
+test('camera denial after leaving its page does not write into missing DOM',async()=>{const h=scannerHarness();const pending=h.ctx.startScanner();h.ctx.stopScanner();delete h.nodes.scanResult;h.reject();await pending;assert.equal(h.ctx.st.scanStream,null)});
+test('repeated camera clicks during permission request open one stream',async()=>{const h=scannerHarness();const pending=h.ctx.startScanner();await h.ctx.startScanner();h.resolve();await pending;assert.deepEqual(h.stats(),{requests:1,stopped:0,loops:1});h.ctx.stopScanner();assert.equal(h.stats().stopped,1)});
+test('storage quota failure is reported without aborting login or the current screen',()=>{const messages=[];const ctx=context({st:{user:{emp:'1234'}},firebaseOn:true,localStorage:{setItem(){throw Error('QuotaExceededError')}},toast:msg=>messages.push(msg)});install(ctx,['saveLocal']);assert.equal(ctx.saveLocal(),false);assert.equal(ctx.saveLocal(),false);assert.equal(messages.length,1);assert.match(messages[0],/저장하지 못했습니다/)});
+test('connected mode saves profile without serializing every live reservation',()=>{const keys=[];const ctx=context({st:{user:{emp:'1234'}},firebaseOn:true,localStorage:{setItem:key=>keys.push(key)}});install(ctx,['saveLocal']);assert.equal(ctx.saveLocal(),true);assert.deepEqual(keys,['sg_real_user'])});
+function noticeHarness(fail=false){const button={disabled:false},form={querySelector:()=>button},nodes={noticeType:{value:'공지'},noticeTitle:{value:'작성 제목',closest:()=>form},noticeBody:{value:'작성 내용'}};let writes=0;const messages=[];const ctx=context({st:{notices:[]},firebaseOn:true,listenNotices:async()=>{},document:{getElementById:id=>nodes[id]||null},db:{collection:()=>({add:async()=>{writes++;if(fail)throw Error('quota')}})},toast:msg=>messages.push(msg)});install(ctx,['addNotice']);return{ctx,nodes,button,messages,writes:()=>writes}}
+test('failed notice save preserves draft and reenables save button',async()=>{const h=noticeHarness(true);await h.ctx.addNotice();assert.equal(h.nodes.noticeTitle.value,'작성 제목');assert.equal(h.nodes.noticeBody.value,'작성 내용');assert.equal(h.button.disabled,false);assert.match(h.messages[0],/내용은 그대로/)});
+test('successful notice save intentionally clears submitted draft',async()=>{const h=noticeHarness();await h.ctx.addNotice();assert.equal(h.nodes.noticeTitle.value,'');assert.equal(h.nodes.noticeBody.value,'');assert.equal(h.button.disabled,false);assert.equal(h.writes(),1)});
+test('double-clicking notice save creates a single notice',async()=>{const h=noticeHarness();await Promise.all([h.ctx.addNotice(),h.ctx.addNotice()]);assert.equal(h.writes(),1)});

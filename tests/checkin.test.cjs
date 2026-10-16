@@ -8,25 +8,30 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const start = html.indexOf('function checkinValidationMessage(');
 const end = html.indexOf('function historyView()', start);
 assert.ok(start >= 0 && end > start, 'extract the actual app check-in functions');
-const source = html.slice(start, end);
+const ledgerStart = html.indexOf('function queueLedgerPatch(');
+const ledgerEnd = html.indexOf('async function reserve(', ledgerStart);
+assert.ok(ledgerStart >= 0 && ledgerEnd > ledgerStart, 'extract actual queue ledger helper');
+const source = html.slice(ledgerStart, ledgerEnd) + html.slice(start, end);
 const today = '2026-10-16';
 const qr = `SGMEAL|${today}|11:40|0123`;
 function reservation(overrides = {}) {
   return {id: `${today}_0123`, name: '테스트', emp: '0123', date: today,
-    time: '11:40', partySize: 3, status: 'reserved', callStatus: 'called',
+    time: '11:40', partySize: 3, queueNumber: 1, status: 'reserved', callStatus: 'called',
     qrEligible: true, code: qr, ...overrides};
 }
 function app({cloud = false, row = reservation(), localRow = row, penalty = null,
   localPenalty = null, retryWith = null, connectionError = false} = {}) {
   const data = new Map();
   if (row) data.set(`reservations/${row.id}`, {...row});
+  const summaryRef = row ? `slotCounts/${row.date}_${row.time.replace(':', '')}` : '';
+  if (row && row.status === 'reserved' && row.qrEligible !== false) data.set(summaryRef, {date: row.date, time: row.time, count: row.partySize + 2, nextQueueNumber: 7, queueLedgerVersion: 1, queueEntries: {[row.queueNumber]: {size: row.partySize, waiting: row.callStatus !== 'called' && row.callStatus !== 'passed'}, 7: {size: 2, waiting: true}}});
   if (penalty) data.set('penalties/0123', {...penalty});
-  const stats = {writes: 0, transactions: 0, attempts: 0, saves: 0, renders: 0, reads: [], toasts: []};
+  const stats = {writes: 0, reservationWrites: 0, ledgerWrites: 0, transactions: 0, attempts: 0, saves: 0, renders: 0, reads: [], toasts: []};
   let retried = false;
   const context = {
     console: {error() {}}, firebaseOn: cloud,
     st: {reservations: localRow ? [{...localRow}] : [], penalties: localPenalty ? {'0123': localPenalty} : {}},
-    todayDate: () => today, docId: (date, emp) => `${date}_${emp}`,
+    todayDate: () => today, slotId: (date, time) => `${date}_${time.replace(':', '')}`, docId: (date, emp) => `${date}_${emp}`,
     isLateReservationStatus: status => status === 'late' || status === 'late_reserved',
     partySizeOf: row => Math.max(1, Math.min(10, Math.trunc(Number(row && row.partySize) || 1))),
     saveLocal: () => stats.saves++, render: () => stats.renders++,
@@ -48,6 +53,7 @@ function app({cloud = false, row = reservation(), localRow = row, penalty = null
               return {exists: !!record, data: () => ({...record})};
             },
             update: (ref, value) => writes.push([ref, value]),
+            set: (ref, value, options) => { assert.equal(options.merge, true); writes.push([ref, value]); },
           });
           // Firestore retries the callback if any read document changes before commit.
           if (retryWith && !retried) {
@@ -59,6 +65,8 @@ function app({cloud = false, row = reservation(), localRow = row, penalty = null
           for (const [ref, value] of writes) {
             data.set(ref, {...data.get(ref), ...value});
             stats.writes++;
+            if (ref.startsWith('reservations/')) stats.reservationWrites++;
+            if (ref.startsWith('slotCounts/')) stats.ledgerWrites++;
           }
           return result;
         }
@@ -68,6 +76,7 @@ function app({cloud = false, row = reservation(), localRow = row, penalty = null
   vm.createContext(context);
   vm.runInContext(source, context);
   return {context, stats, data,
+    get summary() {return data.get(summaryRef);},
     get stored() { return cloud ? data.get(`reservations/${row.id}`) : context.st.reservations[0]; }};
 }
 
@@ -78,7 +87,12 @@ for (const cloud of [false, true]) {
     assert.match(await a.context.checkinByCode(qr), /3명 입장 처리 완료/);
     assert.equal(a.stored.status, 'checkedin');
     assert.match(await a.context.checkinByCode(qr), /이미 입장/);
-    assert.equal(cloud ? a.stats.writes : a.stats.saves, 1);
+    assert.equal(cloud ? a.stats.reservationWrites : a.stats.saves, 1);
+    if (cloud) {
+      assert.equal(a.stats.writes, 2); assert.equal(a.stats.ledgerWrites, 1);
+      assert.equal(a.summary.count, 5, 'check-in must not release booked capacity');
+      assert.deepEqual(JSON.parse(JSON.stringify(a.summary.queueEntries)), {'1': {size: 0, waiting: false}, '7': {size: 2, waiting: true}}, 'only the checked-in entry is tombstoned');
+    }
   });
   test(`${mode}: direct entry rejects past and future reservations`, async () => {
     for (const date of ['2026-10-15', '2026-10-17']) {
@@ -153,7 +167,10 @@ test('Firestore: current server status and group size take precedence over stale
   const a = app({cloud: true, row: reservation({partySize: 5}), localRow: reservation({status: 'cancelled'})});
   await a.context.checkin(`${today}_0123`);
   assert.match(a.stats.toasts[0], /5명 입장 처리 완료/);
-  assert.deepEqual(a.stats.reads, [`reservations/${today}_0123`, 'penalties/0123']);
+  assert.deepEqual(a.stats.reads, [`reservations/${today}_0123`, 'penalties/0123', `slotCounts/${today}_1140`]);
+  assert.equal(a.stats.reservationWrites, 1); assert.equal(a.stats.ledgerWrites, 1);
+  assert.equal(a.summary.count, 7);
+  assert.deepEqual(JSON.parse(JSON.stringify(a.summary.queueEntries['1'])), {size: 0, waiting: false});
   assert.equal(a.stats.transactions, 1);
 });
 
@@ -168,6 +185,9 @@ test('Firestore: transaction retries reject a concurrent cancellation or check-i
       assert.equal(a.stored.status, status);
       assert.equal(a.stats.attempts, 2);
       assert.equal(a.stats.writes, 0);
+      assert.equal(a.stats.reservationWrites, 0); assert.equal(a.stats.ledgerWrites, 0);
+      assert.equal(a.summary.count, 5);
+      assert.equal(a.summary.queueEntries['1'].size, 3);
     }
   }
 });
