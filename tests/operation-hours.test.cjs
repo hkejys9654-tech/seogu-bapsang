@@ -44,9 +44,11 @@ test('clock refreshes the open screen only on minute changes and does not disrup
  run('koreaClock=()=>({date:"2026-10-19",minutes:660});updateOperationClock()');assert.equal(run('renders'),2);
  run('st.tab="more";koreaClock=()=>({date:"2026-10-19",minutes:661});updateOperationClock()');assert.equal(run('renders'),2);
 });
-test('operation notice and guide show workers, reservation hours and late-arrival policy',()=>{
+test('home keeps booking hours brief while the guide retains operational details',()=>{
  const {c,run}=app();let guide='';c.openModal=(title,body)=>guide=body;c.rules();
- for(const text of ['10:00–11:00','11:30–11:40','150명','12:00 이후']){assert.ok(c.operationNotice().includes(text),text);assert.ok(guide.includes(text),text);}
+ assert.ok(c.operationNotice().includes('예약 가능시간'));assert.ok(c.operationNotice().includes('10:00~11:00'));
+ for(const text of ['11:30–11:40','150명','12:00 이후'])assert.ok(guide.includes(text),text);
+ assert.equal(c.operationNotice().includes('현업근로자'),false);
  assert.ok(guide.includes('총 200명'));assert.equal(run('SLOTS.length'),4);
 });
 test('admin verification rejects the old demo code and handles configured SHA-256 correctly',async()=>{

@@ -393,7 +393,7 @@ const views={
     const bookingDate=todayDate(),org=userOrganization(),assigned=org?assignedSlot(org.key,bookingDate):"",partySize=selectedPartySize();
     const blocked=st.user&&isBlocked(st.user.emp,bookingDate),mine=myOnDate(bookingDate);
     if(assigned&&!isEligibleTime(st.slot,bookingDate,org))st.slot=assigned;
-    const head=`<div class="hello"><div><div class="hello-name">${st.user?esc(st.user.name)+"님, ":""}오늘 점심</div><div class="sub">${pretty(bookingDate)}${org?` · ${esc(org.name)}`:""}</div></div>${org?`<div class="hello-slot"><span>직원 입장</span><b>11:40–12:00</b></div>`:""}</div>${noticeStrip()}${operationNotice()}`;
+    const head=`<div class="hello"><div><div class="hello-name">${st.user?esc(st.user.name)+"님, ":""}오늘 점심</div><div class="sub">${pretty(bookingDate)}${org?` · ${esc(org.name)}`:""}</div></div></div>${noticeStrip()}${operationNotice()}`;
     if(mine){
       const call=callVisual(mine,true),ahead=queueAhead(mine);
       return `${head}<div class="card done-card" style="--ticket-accent:${call.theme.accent}"><div class="done-top"><span class="pill ${call.pill}">${call.short}</span><span class="tiny">${reservationLabel(mine)} · ${partySizeOf(mine)}명</span></div><div class="done-time">${esc(mine.time)}</div><div class="done-sub">대기번호 ${String(queueNumberFor(mine)).padStart(3,"0")}번${mine.callStatus==="waiting"||!mine.callStatus?(` · ${queueAheadText(mine)}`):""}</div><div class="notice">${CALL_OPEN_NOTICE}</div><button class="btn primary full" onclick="go('my')">입장표 보기</button></div>`;
@@ -406,11 +406,11 @@ const views={
         <button class="${st.bookingType==="group"?"active":""}" onclick="setBookingType('group')">여럿이</button>
       </div>
       ${st.bookingType==="group"?`<div class="party-inline"><span>대표자 포함 인원</span><div class="party-stepper"><button onclick="changePartySize(-1)" aria-label="인원 줄이기">−</button><div class="party-count">${partySize}명</div><button onclick="changePartySize(1)" aria-label="인원 늘리기">＋</button></div></div>`:""}
-      <div class="step"><span class="step-no">2</span>언제 들어갈까요?</div>
-      ${assigned?`<div class="tiny step-help">소속에 관계없이 선착순으로 예약합니다. 5분 간격 4회차 · 회차별 ${SLOTS[0][1]}명입니다.</div>`:`<div class="notice">직원 정보를 먼저 등록해주세요.</div>`}
-      <div class="tiny" style="margin-bottom:8px">잔여석은 최근 조회 기준이며 예약할 때 다시 확인합니다. <button class="link-btn" onclick="refreshOverview()">잔여석 새로고침</button></div><div class="slot-list">${SLOTS.map(s=>slotRow(s,bookingDate,org,assigned,partySize,blocked)).join("")}</div>
+      <div class="row" style="margin-bottom:10px"><div class="step" style="margin:0"><span class="step-no">2</span>언제 들어갈까요?</div><button class="link-btn" style="margin:0;font-size:12px" onclick="refreshOverview()" aria-label="잔여석 새로고침">새로고침</button></div>
+      <div class="slot-list">${SLOTS.map(s=>slotRow(s,bookingDate,org,assigned,partySize,blocked)).join("")}</div>
       ${blocked?`<div class="noshow-warning">${blockMessage(st.user.emp,bookingDate)}</div>`:""}
-      <div class="cta-sticky"><button class="btn primary full big" onclick="reserve()" ${canBook?"":"disabled"}>${reserve.pending||reserveFirebase.pending?"예약 저장 중…":!st.user?"직원 정보 등록 필요":blocked?"오늘은 예약할 수 없어요":!reservationWindowOpen()?reservationWindowMessage():canBook?`${st.slot} · ${partySize>1?partySize+"명 ":""}예약하기`:"시간을 골라주세요"}</button></div>
+      <div class="cta-sticky"><button class="btn primary full big" onclick="reserve()" ${canBook?"":"disabled"}>${reserve.pending||reserveFirebase.pending?"예약 저장 중…":!st.user?"직원 정보 등록 필요":blocked?"오늘은 예약할 수 없어요":!reservationWindowOpen()?(reservationWindowState()==="before"?"오전 10시 예약 시작":"오늘 예약 마감"):canBook?`${st.slot} · ${partySize>1?partySize+"명 ":""}예약하기`:"시간을 골라주세요"}</button></div>
+      <div class="tiny" style="margin-top:10px;text-align:center;line-height:1.6">예약한 입장시간을 넘기면 <b>12시 이후에 식사해 주세요.</b></div>
     </div>
     <button class="link-btn" onclick="rules()">이용 안내 보기</button>`;
   },
@@ -445,7 +445,7 @@ function slotRow(s,date,org,assigned,partySize,blocked){
   const time=s[0],cap=s[1],rem=remain(date,time),used=cap-rem,available=!blocked&&canBookTime(date,time,org,partySize),active=available&&st.slot===time,stt=status(rem,cap);
   const tag=isQueueClosed(date,time)?["운영 마감","gray"]:!org?["선착순",""]:rem<=0?["마감","gray"]:partySize>rem?["자리 부족","gray"]:[stt[0],stt[1]];
   const meta=firebaseOn&&dataState.slots!=="ready"?"확인 중":!org?`정원 ${cap}명`:`${rem}명 남음`;
-  return `<button class="slot-row ${active?"active":""} ${available?"":"disabled"}" onclick="selectSlot('${time}')" ${available?"":"aria-disabled=\"true\""}><span class="sr-radio"></span><span class="sr-time">${time}<small style="display:block;font-size:11px;font-weight:500">– ${slotEndTime(time)}</small></span><span class="sr-mid"><span class="sr-bar"><i style="width:${Math.min(100,Math.round(used/cap*100))}%"></i></span><span class="sr-meta">${meta}</span></span><span class="sr-tag ${tag[1]}">${tag[0]}</span></button>`;
+  return `<button class="slot-row ${active?"active":""} ${available?"":"disabled"}" onclick="selectSlot('${time}')" ${available?"":"aria-disabled=\"true\""}><span class="sr-radio"></span><span class="sr-time">${time}</span><span class="sr-mid"><span class="sr-bar"><i style="width:${Math.min(100,Math.round(used/cap*100))}%"></i></span><span class="sr-meta">${meta}</span></span><span class="sr-tag ${tag[1]}">${tag[0]}</span></button>`;
 }
 
 function queueAhead(r){
@@ -762,7 +762,7 @@ function reservationTimePassed(r,now=new Date()){
   const clock=koreaClock(now);if(!r||r.date!==clock.date||slotIndex(r.time)<0)return false;
   const [h,m]=slotEndTime(r.time).split(":").map(Number);return clock.minutes>=h*60+m;
 }
-function operationNotice(){return `<div class="notice" style="margin-bottom:14px" aria-label="운영 안내"><b>예약 접수 10:00–11:00</b><br>현업근로자 11:30–11:40 · 150명<br>직원 11:40–12:00 · 4회차 각 50명<br><span class="tiny">예약시간을 넘기면 12:00 이후 식사해주세요.</span><div style="margin-top:6px;font-weight:800" role="status">${reservationWindowMessage()}</div></div>`;}
+function operationNotice(){return `<div class="tiny" style="margin:-4px 0 12px" aria-label="예약 가능시간">예약 가능시간 <b>10:00~11:00</b></div>`;}
 let operationClockKey="";
 function updateOperationClock(){const c=koreaClock(),key=c.date+":"+c.minutes;if(key===operationClockKey)return;operationClockKey=key;if(st.tab==="home"||st.tab==="my")render();}
 
@@ -1167,7 +1167,7 @@ function noticePanel(){const list=[...st.notices].sort((a,b)=>(b.createdAtMs||0)
 
 function openModal(title,html){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("show")}
 function closeModal(){document.getElementById("modal").classList.remove("show")}
-function rules(){openModal("이용 안내",`<ul class="menu-list"><li><b>예약 접수: 오전 10:00–11:00 (한국 시간)</b><br>10시부터 예약할 수 있으며, 11시가 되면 접수가 마감됩니다.</li><li>현업근로자: 11:30–11:40 · 150명</li><li>직원 입장: ${SLOTS.map(v=>`${v[0]}–${slotEndTime(v[0])}`).join(" · ")}<br>5분 간격 4회차 · 각 50명, 총 200명입니다.</li><li>국·기관별 배정 없이 모든 직원이 선착순 예약합니다.</li><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약합니다. 단체 전원이 함께 입장합니다.</li><li>예약한 회차에 입장표가 초록색으로 바뀌면 입장합니다.</li><li><b>예약시간을 넘기면 12:00 이후 안내자 확인을 받고 식사해주세요.</b> 다른 예약 회차로 자동 이동하지 않습니다.</li><li>호출을 놓쳐도 예약 회차가 끝나기 전에는 같은 회차에서 1회 다시 대기할 수 있습니다.</li><li>${CALL_OPEN_NOTICE}</li><li>진동은 기기에 따라 지원하지 않을 수 있습니다. QR은 이상 상황에서 확인합니다.</li></ul>`)}
+function rules(){openModal("이용 안내",`<ul class="menu-list"><li><b>예약 가능시간: 오전 10:00~11:00 (한국 시간)</b><br>10시부터 예약할 수 있으며, 11시가 되면 접수가 마감됩니다.</li><li>현업근로자: 11:30–11:40 · 150명</li><li>직원 입장: ${SLOTS.map(v=>`${v[0]}–${slotEndTime(v[0])}`).join(" · ")}<br>5분 간격 4회차 · 각 50명, 총 200명입니다.</li><li>국·기관별 배정 없이 모든 직원이 선착순 예약합니다.</li><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약합니다. 단체 전원이 함께 입장합니다.</li><li>예약한 회차에 입장표가 초록색으로 바뀌면 입장합니다.</li><li><b>예약시간을 넘기면 12:00 이후 안내자 확인을 받고 식사해주세요.</b> 다른 예약 회차로 자동 이동하지 않습니다.</li><li>호출을 놓쳐도 예약 회차가 끝나기 전에는 같은 회차에서 1회 다시 대기할 수 있습니다.</li><li>${CALL_OPEN_NOTICE}</li><li>진동은 기기에 따라 지원하지 않을 수 있습니다. QR은 이상 상황에서 확인합니다.</li></ul>`)}
 
 function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
 function applyEditUser(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();closeModal();render();toast("소속 정보가 수정되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
