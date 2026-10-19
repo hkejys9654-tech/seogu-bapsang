@@ -17,7 +17,7 @@ function setup(options={}){
  const c={console:{error(){}},st:{user:{emp:'1234',name:'테스트',dept:'기획실'},slot:'11:40',date:day,reservations:options.localRows||[],penalties:{}},firebaseOn:options.cloud!==false,
   todayDate:()=>day,selectedPartySize:()=>c.partySize||3,userOrganization:()=>({key:'plan',name:'기획실'}),assignedSlot:()=> '11:40',isEligibleTime:()=>true,isOverflowChoice:()=>false,
   canBookTime:()=>true,remain:()=>50,isQueueClosed:()=>!!options.locallyClosed,isBlocked:()=>false,blockMessage:()=>'',myOnDate:d=>c.st.reservations.find(r=>r.date===d&&r.emp===c.st.user.emp&&r.status!=='cancelled'),
-  reservationDeadlinePassed:()=>!!options.late,lateReservationNotice:()=> 'late',overflowQuotaReleased:()=>true,EARLY_OVERFLOW_QUOTA:10,
+  reservationWindowOpen:()=>options.windowOpen!==false,reservationWindowMessage:()=>"10:00–11:00 예약 접수",reservationTimePassed:()=>!!options.expired,LATE_ARRIVAL_NOTICE:"12:00 이후 이용",reservationDeadlinePassed:()=>!!options.late,lateReservationNotice:()=> 'late',overflowQuotaReleased:()=>true,EARLY_OVERFLOW_QUOTA:10,
   SLOTS:[['11:40',50],['11:55',50]],slotIndex:time=>['11:40','11:55'].indexOf(time),requeueTarget:r=>options.target||r.time,
   docId:(date,emp)=>`${date}_${emp}`,slotId:(date,time)=>`${date}_${time.replace(':','')}`,queueControlKey:(date,time)=>`${date}_${time.replace(':','')}`,code:(date,time,emp)=>`SGMEAL|${date}|${time}|${emp}`,
   partySizeOf:r=>Math.max(1,Math.min(10,Math.trunc(Number(r&&r.partySize)||1))),isLateReservationStatus:s=>s==='late'||s==='late_reserved',nextDate:()=> '2026-10-17',
@@ -85,12 +85,11 @@ test('same-slot requeue atomically tombstones the old number and appends the ful
  assert.deepEqual(s.queueEntries['1'],{size:0,waiting:false});assert.deepEqual(s.queueEntries['2'],{size:3,waiting:true});
  await h.c.requestRequeueFirebase(rid,'11:40');assert.equal(h.docs.get(slot()).nextQueueNumber,2);
 });
-test('cross-slot requeue moves capacity and group ledger entries in one transaction',async()=>{
- const h=setup({docs:{...seeded({callStatus:'passed'},{queueEntries:{1:{size:3,waiting:false}}}),[slot('11:55')]:summary({time:'11:55',count:0,nextQueueNumber:0,queueEntries:{}})}});
- await h.c.requestRequeueFirebase(rid,'11:55');const old=h.docs.get(slot()),target=h.docs.get(slot('11:55'));
- assert.equal(old.count,0);assert.equal(target.count,3);assert.equal(target.overflowCount,3);
- assert.deepEqual(old.queueEntries['1'],{size:0,waiting:false});assert.deepEqual(target.queueEntries['1'],{size:3,waiting:true});
- assert.equal(h.docs.get(`reservations/${rid}`).time,'11:55');
+test('cross-slot requeue cannot take a seat from a later reserved session',async()=>{
+ const h=setup({docs:seeded({callStatus:'passed'})});
+ await h.c.requestRequeueFirebase(rid,'11:55');
+ assert.equal(h.stats.writes.length,0);assert.equal(h.docs.get(slot()).count,3);
+ assert.ok(h.stats.toasts.some(t=>t.includes('12:00')));
 });
 test('requeue rejects canceled, completed and past-day reservations before ledger changes',async()=>{
  for(const extra of [{status:'cancelled'},{status:'checkedin'},{date:'2026-10-15'}]){const h=setup({docs:seeded({callStatus:'passed',...extra})});await h.c.requestRequeueFirebase(rid,'11:55');assert.equal(h.stats.writes.length,0);}
@@ -101,4 +100,23 @@ test('legacy nonempty summary remains incomplete after normal booking',async()=>
 });
 test('local canceled rebooking replaces its stable ID instead of creating duplicate rows',async()=>{
  const h=setup({cloud:false,localRows:[row({status:'cancelled'})]});await h.c.reserve();assert.equal(h.c.st.reservations.length,1);assert.equal(h.c.st.reservations[0].status,'reserved');
+});
+
+test('outside the reservation window local and cloud entry points make no writes',async()=>{
+ for(const cloud of [true,false]){
+  const h=setup({cloud,windowOpen:false});await h.c.reserve();await h.c.reserveFirebase();
+  assert.equal(h.stats.transactions,0);assert.equal(h.stats.writes.length,0);assert.equal(h.c.st.reservations.length,0);
+ }
+});
+test('11:00 arriving during the transaction rolls back booking and slot counts',async()=>{
+ const h=setup({onGet:async(ref,c)=>{if(ref===slot())c.reservationWindowOpen=()=>false;}});
+ await h.c.reserve();assert.equal(h.stats.writes.length,0);assert.equal(h.docs.size,0);
+});
+test('expired reservation cannot rejoin even its original session',async()=>{
+ const h=setup({expired:true,docs:seeded({callStatus:'passed'})});await h.c.requestRequeueFirebase(rid,'11:40');
+ assert.equal(h.stats.writes.length,0);assert.ok(h.stats.toasts.some(t=>t.includes('12:00')));
+});
+test('slot expiry during requeue also prevents committing the retry',async()=>{
+ const h=setup({docs:seeded({callStatus:'passed'}),onGet:async(ref,c)=>{if(ref===slot())c.reservationTimePassed=()=>true;}});
+ await h.c.requestRequeueFirebase(rid,'11:40');assert.equal(h.stats.writes.length,0);
 });

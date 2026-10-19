@@ -9,7 +9,7 @@ const DAY='2026-10-17';
 function setup(){
   const gets=[],listeners=[],notices=[],toasts=[],events={};
   const records=new Map();
-  for(const time of ['1140','1155','1210','1225','1240'])records.set(`slotCounts/${DAY}_${time}`,{count:12,queueLedgerVersion:1,queueEntries:{}});
+  for(const time of ['1140','1145','1150','1155'])records.set(`slotCounts/${DAY}_${time}`,{count:12,queueLedgerVersion:1,queueEntries:{}});
   function snap(id,data,cache=false){return{id,exists:data!==undefined,data:()=>data,metadata:{fromCache:cache},ref:{path:id}};}
   function query(name,filters=[],order=null,limit=null,id=null){
     const target={name,filters,order,limit,id,path:id===null?name:`${name}/${id}`};
@@ -34,9 +34,9 @@ function setup(){
   const context={__db:db,__notices:notices,__toasts:toasts,console:{error(){},warn(){}},Promise,Date,URLSearchParams,URL,AbortController,Map,Set,
     setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},navigator:{onLine:true},location:{search:'',reload(){}},
     document:{addEventListener:(name,fn)=>{events[name]=fn;},getElementById:()=>null,querySelectorAll:()=>[],visibilityState:'visible'},window:{addEventListener:(name,fn)=>{events[name]=fn;}},
-    localStorage:{getItem:()=>null,setItem(){},removeItem(){}},firebase:{initializeApp(){},firestore},prompt:()=> '1234',confirm:()=>true};
+    localStorage:{getItem:()=>null,setItem(){},removeItem(){}},firebase:{initializeApp(){},firestore},prompt:()=> 'test-admin-code',confirm:()=>true};
   vm.createContext(context);vm.runInContext(source,context);
-  vm.runInContext(`render=()=>{};toast=message=>__toasts.push(message);stopScanner=()=>{};populateOrganizationSelect=()=>{};populateDeptSelect=()=>{};updateLoginState=()=>{};migrateUserOrganization=()=>{};notifyCall=r=>__notices.push(r);todayDate=()=> '${DAY}';st.date='${DAY}';st.user={emp:'1234',name:'Test',orgKey:'planning',dept:'기획실'};`,context);
+  vm.runInContext(`verifyAdminCode=async value=>value==="test-admin-code";render=()=>{};toast=message=>__toasts.push(message);stopScanner=()=>{};populateOrganizationSelect=()=>{};populateDeptSelect=()=>{};updateLoginState=()=>{};migrateUserOrganization=()=>{};notifyCall=r=>__notices.push(r);todayDate=()=> '${DAY}';st.date='${DAY}';st.user={emp:'1234',name:'Test',orgKey:'planning',dept:'기획실'};`,context);
   const run=code=>vm.runInContext(code,context);
   return{gets,listeners,notices,toasts,records,events,run,flush:()=>new Promise(resolve=>setImmediate(resolve)),
     async start(){run('firebaseOn=true;db=__db;refreshDataScope(true)');await this.flush();},
@@ -49,8 +49,8 @@ const reservation=(changes={})=>({emp:'1234',date:DAY,time:'11:40',status:'reser
 test('ordinary employee listens to only own reservation and own penalty, never full collections',async()=>{
   const h=setup();await h.start();
   assert.deepEqual(h.listeners.filter(l=>l.active).map(l=>l.path).sort(),[`penalties/1234`,`reservations/${DAY}_1234`]);
-  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,5);
-  assert.equal(h.gets.filter(g=>g.name==='queueControls').length,5);
+  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,4);
+  assert.equal(h.gets.filter(g=>g.name==='queueControls').length,4);
   assert.equal(h.gets.some(g=>['reservations','penalties'].includes(g.name)&&g.id===null),false);
 });
 
@@ -62,15 +62,15 @@ test('reservation opens only its own anonymous queue listener and checkin stops 
   h.emit(own,reservation({status:'checkedin',time:'11:55'}));assert.equal(h.listeners.some(l=>l.active&&l.name==='slotCounts'),false);
 });
 
-test('overview reads five slots once and has a 60 second refresh cooldown',async()=>{
+test('overview reads four slots once and has a 60 second refresh cooldown',async()=>{
   const h=setup();await h.start();await h.run('refreshOverview()');await h.run('refreshOverview()');
-  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,5);
-  h.run('overviewAt=Date.now()-61000');await h.run('refreshOverview()');assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,10);
+  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,4);
+  h.run('overviewAt=Date.now()-61000');await h.run('refreshOverview()');assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,8);
   assert.equal(h.listeners.some(l=>l.name==='slotCounts'),false);
 });
 
 test('admin full-list listeners exist only in unlocked admin view and close on return',async()=>{
-  const h=setup();await h.start();h.run('st.tab="more";unlockAdmin()');await h.flush();
+  const h=setup();await h.start();await h.run('st.tab="more";unlockAdmin()');await h.flush();
   assert.equal(h.listeners.filter(l=>l.active&&l.name==='reservations'&&l.id===null).length,1);
   assert.equal(h.listeners.filter(l=>l.active&&l.name==='queueControls'&&l.id===null).length,1);
   assert.equal(h.listeners.some(l=>l.active&&l.name==='penalties'&&l.id===null),false);

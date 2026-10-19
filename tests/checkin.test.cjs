@@ -31,7 +31,7 @@ function app({cloud = false, row = reservation(), localRow = row, penalty = null
   const context = {
     console: {error() {}}, firebaseOn: cloud,
     st: {reservations: localRow ? [{...localRow}] : [], penalties: localPenalty ? {'0123': localPenalty} : {}},
-    todayDate: () => today, slotId: (date, time) => `${date}_${time.replace(':', '')}`, docId: (date, emp) => `${date}_${emp}`,
+    reservationTimePassed: () => false, LATE_ARRIVAL_NOTICE: "12:00 이후 이용", todayDate: () => today, slotId: (date, time) => `${date}_${time.replace(':', '')}`, docId: (date, emp) => `${date}_${emp}`,
     isLateReservationStatus: status => status === 'late' || status === 'late_reserved',
     partySizeOf: row => Math.max(1, Math.min(10, Math.trunc(Number(row && row.partySize) || 1))),
     saveLocal: () => stats.saves++, render: () => stats.renders++,
