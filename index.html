@@ -36,6 +36,9 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .badge{display:inline-flex;align-items:center;gap:6px;background:var(--soft);color:var(--orange);border:1px solid #ffd9bf;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;white-space:nowrap}
 .badge.live{background:#ecfdf5;border-color:#a7f3d0;color:#047857}.badge.demo{background:#fef3c7;border-color:#fde68a;color:#92400e}
 .content{padding:16px 16px 100px}
+.booking-hours{margin:0 0 14px;padding:14px 18px;border:2px solid #fb923c;border-radius:18px;background:#fff2e8;text-align:center;color:#9a3412}
+.booking-hours span{display:block;font-size:15px;font-weight:800;margin-bottom:4px}
+.booking-hours strong{display:block;font-size:30px;font-weight:950;line-height:1.2;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .card{background:#fff;border-radius:22px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
 .title{font-size:18px;font-weight:900;margin:0 0 10px}
 .btn{border:0;border-radius:16px;padding:14px 16px;font-size:15px;font-weight:900;cursor:pointer;transition:.15s ease}
@@ -65,7 +68,7 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .toast{position:fixed;left:50%;transform:translateX(-50%) translateY(30px);bottom:96px;z-index:60;background:#111827;color:#fff;padding:12px 16px;border-radius:14px;font-size:13px;font-weight:900;opacity:0;transition:.25s;max-width:calc(100% - 40px)}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .admin-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}.admin-tabs button{border:1px solid var(--line);background:#fff;padding:10px 4px;border-radius:12px;font-size:11px;font-weight:900;cursor:pointer}.admin-tabs button.active{background:var(--soft);border-color:#ffd9bf;color:var(--orange)}
 .cameraBox{overflow:hidden;border-radius:18px;border:1px solid var(--line);background:#000;aspect-ratio:3/4;display:grid;place-items:center}.cameraBox video{width:100%;height:100%;object-fit:cover}.scanResult{margin-top:10px;padding:12px;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px;line-height:1.45}.reservation-item{border:1px solid var(--line);border-radius:18px;padding:12px;background:#fff;margin-bottom:10px}
-.call-slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}.call-slot-grid button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 2px;font-size:12px;font-weight:900;cursor:pointer}.call-slot-grid button.active{background:#123a6b;border-color:#123a6b;color:#fff}.call-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.call-stat{padding:12px 6px;border-radius:14px;text-align:center;border:1px solid var(--line);background:#fff}.call-stat b{display:block;font-size:24px;margin-bottom:3px}.call-stat span{font-size:11px;color:var(--muted);font-weight:900}.call-stat.green{background:#ecfdf5;border-color:#86efac;color:#047857}.call-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.call-buttons button{padding:16px 4px;font-size:16px}.call-live-board{margin:14px 0;padding:18px;border-radius:20px;background:#ecfdf5;border:2px solid #22c55e;text-align:center;color:#065f46}.call-live-board.wait{background:#f8fafc;border-color:#cbd5e1;color:#475569}.call-live-board .call-number{font-size:32px;font-weight:950;letter-spacing:-.04em}.call-live-board .call-token-big{margin-top:8px;font-size:21px;font-weight:950}.call-help{margin-top:12px;padding:12px;border-radius:14px;background:#f8fafc;color:#475569;font-size:12px;line-height:1.55}.push-card{margin-top:14px;padding:14px;border:1px solid #bfdbfe;border-radius:18px;background:linear-gradient(135deg,#eff6ff,#fff)}.push-state{display:inline-flex;margin-top:8px;padding:5px 9px;border-radius:999px;background:#e2e8f0;color:#475569;font-size:11px;font-weight:900}.push-state.on{background:#dcfce7;color:#166534}.requeue-box{margin-top:14px;padding:14px;border-radius:18px;background:#fff7ed;border:1px solid #fdba74;text-align:center}.requeue-box b{display:block;color:#9a3412;margin-bottom:5px}.slot-closed{background:#fef2f2!important;border-color:#fecaca!important;color:#991b1b!important}
+.call-slot-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:12px 0}.call-slot-grid button{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 2px;font-size:12px;font-weight:900;cursor:pointer}.call-slot-grid button.active{background:#123a6b;border-color:#123a6b;color:#fff}.call-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.call-stat{padding:12px 6px;border-radius:14px;text-align:center;border:1px solid var(--line);background:#fff}.call-stat b{display:block;font-size:24px;margin-bottom:3px}.call-stat span{font-size:11px;color:var(--muted);font-weight:900}.call-stat.green{background:#ecfdf5;border-color:#86efac;color:#047857}.call-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.call-buttons button{padding:16px 4px;font-size:16px}.call-live-board{margin:14px 0;padding:18px;border-radius:20px;background:#ecfdf5;border:2px solid #22c55e;text-align:center;color:#065f46}.call-live-board.wait{background:#f8fafc;border-color:#cbd5e1;color:#475569}.call-live-board .call-number{font-size:32px;font-weight:950;letter-spacing:-.04em}.call-live-board .call-token-big{margin-top:8px;font-size:21px;font-weight:950}.call-help{margin-top:12px;padding:12px;border-radius:14px;background:#f8fafc;color:#475569;font-size:12px;line-height:1.55}.push-card{margin-top:14px;padding:14px;border:1px solid #bfdbfe;border-radius:18px;background:linear-gradient(135deg,#eff6ff,#fff)}.push-state{display:inline-flex;margin-top:8px;padding:5px 9px;border-radius:999px;background:#e2e8f0;color:#475569;font-size:11px;font-weight:900}.push-state.on{background:#dcfce7;color:#166534}.requeue-box{margin-top:14px;padding:14px;border-radius:18px;background:#fff7ed;border:1px solid #fdba74;text-align:center}.requeue-box b{display:block;color:#9a3412;margin-bottom:5px}.slot-closed{background:#fef2f2!important;border-color:#fecaca!important;color:#991b1b!important}
 
 .dashboard-card{
   position:relative;
@@ -324,7 +327,7 @@ const firebaseConfig = {
   measurementId: "G-6GKFMWGS0R"
 };
 
-const SLOTS=[["11:40",50],["11:45",50],["11:50",50],["11:55",50]];
+const SLOTS=[["11:40",50],["11:45",50],["11:50",50],["11:55",50],["12:00",50]];
 const SLOT_MINUTES=5;
 const LATE_ARRIVAL_NOTICE="예약시간이 지났습니다. 12:00 이후 안내자 확인을 받고 식사해주세요.";
 // 화면 잠금용 코드의 검증값입니다. 서버 권한 인증을 대신하지 않습니다.
@@ -332,7 +335,7 @@ const ADMIN_CODE_SHA256="79367e48230310e0bf6aac2db28bd150f3b21112914bdfcb3193b27
 const EARLY_OVERFLOW_QUOTA=12;
 const OVERFLOW_RELEASE_HOUR=10;
 const OVERFLOW_RELEASE_MINUTE=30;
-// 국·기관은 직원 소속 확인용입니다. 모든 직원이 4개 회차에서 선착순 예약합니다.
+// 국·기관은 직원 소속 확인용입니다. 모든 직원이 5개 회차에서 선착순 예약합니다.
 const ORG_GROUPS=[
   {key:"living",name:"생활정부국",departments:["주민자치과","공원녹지과","행복교육과","민원봉사과"]},
   {key:"culture",name:"문화경제국",departments:["문화예술과","민생경제과","시장산업과","체육관광과","도서관과"]},
@@ -762,7 +765,7 @@ function reservationTimePassed(r,now=new Date()){
   const clock=koreaClock(now);if(!r||r.date!==clock.date||slotIndex(r.time)<0)return false;
   const [h,m]=slotEndTime(r.time).split(":").map(Number);return clock.minutes>=h*60+m;
 }
-function operationNotice(){return `<div class="tiny" style="margin:-4px 0 12px" aria-label="예약 가능시간">예약 가능시간 <b>10:00~11:00</b></div>`;}
+function operationNotice(){return `<div class="booking-hours" aria-label="예약 가능시간"><span>예약 가능시간</span><strong>10:00~11:00</strong></div>`;}
 let operationClockKey="";
 function updateOperationClock(){const c=koreaClock(),key=c.date+":"+c.minutes;if(key===operationClockKey)return;operationClockKey=key;if(st.tab==="home"||st.tab==="my")render();}
 
@@ -1167,7 +1170,7 @@ function noticePanel(){const list=[...st.notices].sort((a,b)=>(b.createdAtMs||0)
 
 function openModal(title,html){document.getElementById("modalTitle").textContent=title;document.getElementById("modalBody").innerHTML=html;document.getElementById("modal").classList.add("show")}
 function closeModal(){document.getElementById("modal").classList.remove("show")}
-function rules(){openModal("이용 안내",`<ul class="menu-list"><li><b>예약 가능시간: 오전 10:00~11:00 (한국 시간)</b><br>10시부터 예약할 수 있으며, 11시가 되면 접수가 마감됩니다.</li><li>현업근로자: 11:30–11:40 · 150명</li><li>직원 입장: ${SLOTS.map(v=>`${v[0]}–${slotEndTime(v[0])}`).join(" · ")}<br>5분 간격 4회차 · 각 50명, 총 200명입니다.</li><li>국·기관별 배정 없이 모든 직원이 선착순 예약합니다.</li><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약합니다. 단체 전원이 함께 입장합니다.</li><li>예약한 회차에 입장표가 초록색으로 바뀌면 입장합니다.</li><li><b>예약시간을 넘기면 12:00 이후 안내자 확인을 받고 식사해주세요.</b> 다른 예약 회차로 자동 이동하지 않습니다.</li><li>호출을 놓쳐도 예약 회차가 끝나기 전에는 같은 회차에서 1회 다시 대기할 수 있습니다.</li><li>${CALL_OPEN_NOTICE}</li><li>진동은 기기에 따라 지원하지 않을 수 있습니다. QR은 이상 상황에서 확인합니다.</li></ul>`)}
+function rules(){openModal("이용 안내",`<ul class="menu-list"><li><b>예약 가능시간: 오전 10:00~11:00 (한국 시간)</b><br>10시부터 예약할 수 있으며, 11시가 되면 접수가 마감됩니다.</li><li>직원 입장: ${SLOTS.map(v=>`${v[0]}–${slotEndTime(v[0])}`).join(" · ")}<br>${SLOT_MINUTES}분 간격 ${SLOTS.length}회차 · 각 50명, 총 ${SLOTS.reduce((sum,slot)=>sum+slot[1],0)}명입니다.</li><li>국·기관별 배정 없이 모든 직원이 선착순 예약합니다.</li><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약합니다. 단체 전원이 함께 입장합니다.</li><li>예약한 회차에 입장표가 초록색으로 바뀌면 입장합니다.</li><li><b>예약시간을 넘기면 12:00 이후 안내자 확인을 받고 식사해주세요.</b> 다른 예약 회차로 자동 이동하지 않습니다.</li><li>호출을 놓쳐도 예약 회차가 끝나기 전에는 같은 회차에서 1회 다시 대기할 수 있습니다.</li><li>${CALL_OPEN_NOTICE}</li><li>진동은 기기에 따라 지원하지 않을 수 있습니다. QR은 이상 상황에서 확인합니다.</li></ul>`)}
 
 function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
 function applyEditUser(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();closeModal();render();toast("소속 정보가 수정되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}

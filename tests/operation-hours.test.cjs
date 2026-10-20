@@ -18,11 +18,11 @@ test('booking window is 10:00 inclusive to 11:00 exclusive in Korea',()=>{
 test('Korea calendar date is used even when UTC date is still yesterday',()=>{
  assert.deepEqual(JSON.parse(JSON.stringify(app().c.koreaClock(new Date('2026-10-18T15:00:00Z')))),{date:'2026-10-19',minutes:0});
 });
-test('four consecutive five minute employee sessions hold exactly 200 people',()=>{
+test('five consecutive five minute employee sessions hold exactly 250 people',()=>{
  const {c,run}=app(),slots=JSON.parse(run('JSON.stringify(SLOTS)'));
- assert.deepEqual(slots,[['11:40',50],['11:45',50],['11:50',50],['11:55',50]]);
- assert.equal(slots.reduce((n,s)=>n+s[1],0),200);
- assert.deepEqual(slots.map(s=>c.slotEndTime(s[0])),['11:45','11:50','11:55','12:00']);
+ assert.deepEqual(slots,[['11:40',50],['11:45',50],['11:50',50],['11:55',50],['12:00',50]]);
+ assert.equal(slots.reduce((n,s)=>n+s[1],0),250);
+ assert.deepEqual(slots.map(s=>c.slotEndTime(s[0])),['11:45','11:50','11:55','12:00','12:05']);
 });
 test('every department can select every session without overflow quotas or month rotation',()=>{
  const {run}=app();assert.equal(run('ORG_GROUPS.every(org=>SLOTS.every(([time])=>isEligibleTime(time,"2026-10-19",org)&&isEligibleTime(time,"2026-11-19",org)&&!isOverflowChoice(time,"2026-10-19",org)))'),true);
@@ -33,6 +33,8 @@ test('late arrival starts at the end of the reserved five minute interval',()=>{
  assert.equal(c.reservationTimePassed(r,at('11:44:59')),false);assert.equal(c.reservationTimePassed(r,at('11:45:00')),true);
  assert.equal(c.reservationTimePassed({...r,time:'11:55'},at('11:59:59')),false);
  assert.equal(c.reservationTimePassed({...r,time:'11:55'},at('12:00:00')),true);
+ assert.equal(c.reservationTimePassed({...r,time:'12:00'},at('12:04:59')),false);
+ assert.equal(c.reservationTimePassed({...r,time:'12:00'},at('12:05:00')),true);
 });
 test('an expired called ticket loses its green entry permission; checked-in stays complete',()=>{
  const {c,run}=app();run('firebaseOn=false;reservationTimePassed=()=>true');
@@ -47,9 +49,10 @@ test('clock refreshes the open screen only on minute changes and does not disrup
 test('home keeps booking hours brief while the guide retains operational details',()=>{
  const {c,run}=app();let guide='';c.openModal=(title,body)=>guide=body;c.rules();
  assert.ok(c.operationNotice().includes('예약 가능시간'));assert.ok(c.operationNotice().includes('10:00~11:00'));
- for(const text of ['11:30–11:40','150명','12:00 이후'])assert.ok(guide.includes(text),text);
+ assert.ok(guide.includes('12:00 이후'));
+ for(const text of ['현업근로자','150명'])assert.equal(guide.includes(text),false,text);
  assert.equal(c.operationNotice().includes('현업근로자'),false);
- assert.ok(guide.includes('총 200명'));assert.equal(run('SLOTS.length'),4);
+ assert.ok(guide.includes('총 250명'));assert.equal(run('SLOTS.length'),5);
 });
 test('admin verification rejects the old demo code and handles configured SHA-256 correctly',async()=>{
  const {c}=app();assert.equal(await c.verifyAdminCode('1234'),false);assert.equal(await c.verifyAdminCode(''),false);

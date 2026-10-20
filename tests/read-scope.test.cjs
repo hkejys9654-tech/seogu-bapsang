@@ -9,7 +9,7 @@ const DAY='2026-10-17';
 function setup(){
   const gets=[],listeners=[],notices=[],toasts=[],events={};
   const records=new Map();
-  for(const time of ['1140','1145','1150','1155'])records.set(`slotCounts/${DAY}_${time}`,{count:12,queueLedgerVersion:1,queueEntries:{}});
+  for(const time of ['1140','1145','1150','1155','1200'])records.set(`slotCounts/${DAY}_${time}`,{count:12,queueLedgerVersion:1,queueEntries:{}});
   function snap(id,data,cache=false){return{id,exists:data!==undefined,data:()=>data,metadata:{fromCache:cache},ref:{path:id}};}
   function query(name,filters=[],order=null,limit=null,id=null){
     const target={name,filters,order,limit,id,path:id===null?name:`${name}/${id}`};
@@ -49,8 +49,8 @@ const reservation=(changes={})=>({emp:'1234',date:DAY,time:'11:40',status:'reser
 test('ordinary employee listens to only own reservation and own penalty, never full collections',async()=>{
   const h=setup();await h.start();
   assert.deepEqual(h.listeners.filter(l=>l.active).map(l=>l.path).sort(),[`penalties/1234`,`reservations/${DAY}_1234`]);
-  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,4);
-  assert.equal(h.gets.filter(g=>g.name==='queueControls').length,4);
+  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,5);
+  assert.equal(h.gets.filter(g=>g.name==='queueControls').length,5);
   assert.equal(h.gets.some(g=>['reservations','penalties'].includes(g.name)&&g.id===null),false);
 });
 
@@ -62,10 +62,10 @@ test('reservation opens only its own anonymous queue listener and checkin stops 
   h.emit(own,reservation({status:'checkedin',time:'11:55'}));assert.equal(h.listeners.some(l=>l.active&&l.name==='slotCounts'),false);
 });
 
-test('overview reads four slots once and has a 60 second refresh cooldown',async()=>{
+test('overview reads five slots once and has a 60 second refresh cooldown',async()=>{
   const h=setup();await h.start();await h.run('refreshOverview()');await h.run('refreshOverview()');
-  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,4);
-  h.run('overviewAt=Date.now()-61000');await h.run('refreshOverview()');assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,8);
+  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,5);
+  h.run('overviewAt=Date.now()-61000');await h.run('refreshOverview()');assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,10);
   assert.equal(h.listeners.some(l=>l.name==='slotCounts'),false);
 });
 
