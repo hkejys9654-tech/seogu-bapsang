@@ -50,7 +50,9 @@ test('home keeps booking hours brief while the guide retains operational details
  const {c,run}=app();let guide='';c.openModal=(title,body)=>guide=body;c.rules();
  assert.ok(c.operationNotice().includes('예약 가능시간'));assert.ok(c.operationNotice().includes('10:00~11:00'));
  assert.ok(guide.includes('12:00 이후'));
- for(const text of ['현업근로자','150명'])assert.equal(guide.includes(text),false,text);
+ assert.ok(guide.includes('현업근로자 (공무직, 시선제, 기간제, 공공근로 등)'));
+ assert.ok(guide.includes('11:30~11:40'));
+ assert.equal(guide.includes('150명'),false);
  assert.equal(c.operationNotice().includes('현업근로자'),false);
  assert.ok(guide.includes('총 250명'));assert.equal(run('SLOTS.length'),5);
 });
