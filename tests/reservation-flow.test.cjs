@@ -21,6 +21,7 @@ function setup(options={}){
   SLOTS:[['11:40',50],['11:55',50]],slotIndex:time=>['11:40','11:55'].indexOf(time),requeueTarget:r=>options.target||r.time,
   docId:(date,emp)=>`${date}_${emp}`,slotId:(date,time)=>`${date}_${time.replace(':','')}`,queueControlKey:(date,time)=>`${date}_${time.replace(':','')}`,code:(date,time,emp)=>`SGMEAL|${date}|${time}|${emp}`,
   partySizeOf:r=>Math.max(1,Math.min(10,Math.trunc(Number(r&&r.partySize)||1))),isLateReservationStatus:s=>s==='late'||s==='late_reserved',nextDate:()=> '2026-10-17',
+  dataEpoch:0,confirmedReservations:new Map(),dataState:{reservation:'loading'},reservationSnapshotReady:false,listenOwnQueue(){},
   refreshOverview:async()=>{},saveLocal(){},render(){},go(){},updateLoginState(){},toast:message=>stats.toasts.push(message),
   firebase:{firestore:{FieldValue:{serverTimestamp:()=> 'NOW',delete:()=> 'DELETE_FIELD'}}},
   db:{collection:name=>({doc:id=>`${name}/${id}`}),runTransaction:callback=>{stats.transactions++;const result=chain.then(async()=>{const pending=[];

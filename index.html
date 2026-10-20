@@ -925,13 +925,26 @@ async function reserveFirebase(booking=null){
   const slot=SLOTS.find(s=>s[0]===time);
   if(!org||!slot||!isEligibleTime(time,bookingDate,org))return toast("운영 중인 회차를 선택해주세요.");
   const cap=slot[1],rRef=db.collection("reservations").doc(docId(bookingDate,user.emp)),sRef=db.collection("slotCounts").doc(slotId(bookingDate,time));
+  const bookingEpoch=dataEpoch,bookingUser=st.user;
+  const inBookingScope=()=>dataEpoch===bookingEpoch&&st.user===bookingUser&&st.user&&st.user.emp===user.emp&&st.date===bookingDate&&todayDate()===bookingDate;
+  // Only server-confirmed data can recover an uncertain transaction response.
+  const showConfirmedReservation=(snap,message)=>{
+    if(!inBookingScope()||!snap.exists||snap.metadata&&(snap.metadata.fromCache||snap.metadata.hasPendingWrites))return false;
+    const data=snap.data();
+    if(data.emp!==user.emp||data.date!==bookingDate||data.status==="cancelled")return false;
+    const item={...data,id:docId(bookingDate,user.emp)};
+    st.reservations=st.reservations.filter(r=>r.id!==item.id);st.reservations.push(item);
+    confirmedReservations.set(item.id,item);dataState.reservation="ready";reservationSnapshotReady=true;
+    listenOwnQueue(item);go("my");toast(message);return true;
+  };
+  let existingReservation=null;
   reserveFirebase.pending=true;
   try{
     await db.runTransaction(async tx=>{
       if(bookingDate!==todayDate())throw new Error("DATE_CHANGED");
       if(!reservationWindowOpen())throw new Error("WINDOW_ENDED");
       const rSnap=await tx.get(rRef);
-      if(rSnap.exists&&rSnap.data().status!=="cancelled")throw new Error("EXISTS");
+      if(rSnap.exists&&rSnap.data().status!=="cancelled"){existingReservation=rSnap;throw new Error("EXISTS");}
       const pSnap=await tx.get(db.collection("penalties").doc(user.emp));
       if(pSnap.exists&&pSnap.data().blockDate===bookingDate)throw new Error("BLOCKED");
       const controlSnap=await tx.get(db.collection("queueControls").doc(queueControlKey(bookingDate,time)));
@@ -948,18 +961,42 @@ async function reserveFirebase(booking=null){
       if(!late)tx.set(sRef,{...queueLedgerPatch(sData,null,item),cap,count:count+partySize,overflowCount:overflowCountNow+(overflow?partySize:0),nextQueueNumber:queueNumber,updatedAt:now},{merge:true});
       tx.set(rRef,item);
     });
-    if(st.user&&st.user.emp===user.emp)go("my");
+    if(!inBookingScope())return;
+    go("my");
     toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.");
   }catch(e){
     console.error(e);const msg=String(e.message||"");
+    if(!inBookingScope())return;
     if(msg.includes("WINDOW_ENDED"))toast(reservationWindowMessage());
-    else if(msg.includes("EXISTS"))toast("이미 오늘 예약이 있습니다.");
+    else if(msg.includes("EXISTS")){
+      if(!existingReservation||!showConfirmedReservation(existingReservation,"이미 오늘 예약이 있습니다."))toast("오늘 예약을 입장표에서 다시 확인해주세요.");
+    }
     else if(msg.includes("BLOCKED"))toast("노쇼 이력으로 오늘 예약이 제한됩니다.");
-    else if(msg.includes("CLOSED"))toast("운영이 마감된 시간대입니다. 다른 시간을 선택해주세요.");
+    else if(msg.includes("CLOSED")){toast("운영이 마감된 시간대입니다. 다른 시간을 선택해주세요.");void refreshOverview(true);}
     else if(msg.includes("DATE_CHANGED"))toast("날짜가 바뀌었습니다. 오늘 화면에서 다시 예약해주세요.");
-    else if(msg.includes("OVERFLOW_FULL"))toast("선택한 시간의 공유 좌석이 마감되었습니다.");
-    else if(msg.includes("FULL"))toast("선택한 시간은 마감되었습니다.");
-    else toast("예약 처리 중 오류가 발생했습니다.");
+    else if(msg.includes("OVERFLOW_FULL")){toast("선택한 시간의 공유 좌석이 마감되었습니다.");void refreshOverview(true);}
+    else if(msg.includes("FULL")){toast("선택한 시간은 마감되었습니다.");void refreshOverview(true);}
+    else{
+      const errorCode=String(e.code||"").replace(/^firestore\//,""),offline=navigator.onLine===false||errorCode==="offline";
+      if(errorCode==="aborted")toast("동시 예약이 몰려 처리하지 못했어요. 다시 예약해주세요.");
+      else if(errorCode==="resource-exhausted")toast("서버 이용 한도에 도달했어요. 관리자에게 알려주세요.");
+      else if(errorCode==="permission-denied"||errorCode==="unauthenticated")toast("예약 권한을 확인하지 못했어요. 관리자에게 문의해주세요.");
+      else if(["unavailable","deadline-exceeded","offline"].includes(errorCode)||offline){
+        const reason=offline?"인터넷 연결이 끊겼어요.":errorCode==="deadline-exceeded"?"서버 응답이 늦어졌어요.":"서버에 연결하지 못했어요.";
+        let timer;
+        try{
+          const snap=await Promise.race([rRef.get({source:"server"}),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("RESERVATION_CONFIRM_TIMEOUT")),5000);})]);
+          if(!inBookingScope())return;
+          if(showConfirmedReservation(snap,"예약이 확인되었습니다. 입장표를 확인해주세요."))return;
+          const confirmed=snap.metadata&&!snap.metadata.fromCache&&!snap.metadata.hasPendingWrites;
+          if(confirmed&&(!snap.exists||(snap.data().emp===user.emp&&snap.data().date===bookingDate&&snap.data().status==="cancelled")))toast(`${reason} 저장된 예약이 없으니 다시 예약해주세요.`);
+          else toast(`${reason} 예약 여부를 확인하지 못했어요. 연결 후 입장표를 다시 확인해주세요.`);
+        }catch(confirmError){
+          console.error(confirmError);
+          if(inBookingScope())toast(`${reason} 예약 여부를 확인하지 못했어요. 연결 후 입장표를 다시 확인해주세요.`);
+        }finally{clearTimeout(timer);}
+      }else toast("예약 처리 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.");
+    }
   }finally{reserveFirebase.pending=false;render();}
 }
 async function cancelRes(idv){

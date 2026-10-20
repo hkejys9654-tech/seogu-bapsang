@@ -1,0 +1,740 @@
+{
+  "timestamp": "2026-10-20T04:24:47.884Z",
+  "environment": "local-firestore-emulator",
+  "projectId": "demo-bapsang-load",
+  "emulator": "127.0.0.1:8787",
+  "sdk": "10.12.5",
+  "source": "../../../../tmp/bapsang-load-improved.html",
+  "sourceSha256": "aab676f821c53f0f593b0bc17ca1c37da403847cbbcddf40493198cfc2be4eb8",
+  "productionWrites": false,
+  "note": "Emulator timing is not a production throughput guarantee. Fault cases inject SDK rejections.",
+  "scenarios": [
+    {
+      "name": "single-400",
+      "requested": 400,
+      "completed": 400,
+      "timedOut": false,
+      "elapsedMs": 14846,
+      "outcomes": {
+        "booked": 50,
+        "full": 350
+      },
+      "latencyMs": {
+        "p50": 10792,
+        "p95": 13646,
+        "max": 14831
+      },
+      "transactionAttempts": 1700,
+      "transactionCalls": 400,
+      "bookedPeople": 50,
+      "pendingAfterCompletion": 0,
+      "errors": [],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 50,
+            "waiting": 50
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          }
+        ],
+        "reservationDocuments": 50,
+        "activeReservations": 50,
+        "activePeople": 50,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "Exactly 50 reservations succeed and 350 are full",
+            "passed": true
+          },
+          {
+            "description": "The database stores exactly 50 occupied seats",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "distributed-400",
+      "requested": 400,
+      "completed": 400,
+      "timedOut": false,
+      "elapsedMs": 10741,
+      "outcomes": {
+        "booked": 250,
+        "full": 150
+      },
+      "latencyMs": {
+        "p50": 5998,
+        "p95": 8298,
+        "max": 10724
+      },
+      "transactionAttempts": 1345,
+      "transactionCalls": 400,
+      "bookedPeople": 250,
+      "pendingAfterCompletion": 0,
+      "errors": [],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 50,
+            "waiting": 50
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 50,
+            "waiting": 50
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 50,
+            "waiting": 50
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 50,
+            "waiting": 50
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 50,
+            "waiting": 50
+          }
+        ],
+        "reservationDocuments": 250,
+        "activeReservations": 250,
+        "activePeople": 250,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "Exactly 250 reservations succeed and 150 are full",
+            "passed": true
+          },
+          {
+            "description": "The database stores exactly 250 occupied seats",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "groups-100",
+      "requested": 100,
+      "completed": 100,
+      "timedOut": false,
+      "elapsedMs": 2759,
+      "outcomes": {
+        "booked": 65,
+        "full": 35
+      },
+      "latencyMs": {
+        "p50": 1501,
+        "p95": 1959,
+        "max": 2757
+      },
+      "transactionAttempts": 196,
+      "transactionCalls": 100,
+      "bookedPeople": 248,
+      "pendingAfterCompletion": 0,
+      "errors": [],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 49,
+            "recordedPeople": 49,
+            "reservations": 14,
+            "waiting": 49
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 11,
+            "waiting": 50
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 49,
+            "recordedPeople": 49,
+            "reservations": 15,
+            "waiting": 49
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 12,
+            "waiting": 50
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 50,
+            "recordedPeople": 50,
+            "reservations": 13,
+            "waiting": 50
+          }
+        ],
+        "reservationDocuments": 65,
+        "activeReservations": 65,
+        "activePeople": 248,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "Every mixed-size party is booked or rejected as full",
+            "passed": true
+          },
+          {
+            "description": "Group booking actually occupied seats",
+            "passed": true
+          },
+          {
+            "description": "Successful party sizes equal the stored head count",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "duplicate-20",
+      "requested": 20,
+      "completed": 20,
+      "timedOut": false,
+      "elapsedMs": 1576,
+      "outcomes": {
+        "booked": 1,
+        "duplicate": 19
+      },
+      "latencyMs": {
+        "p50": 917,
+        "p95": 1479,
+        "max": 1576
+      },
+      "transactionAttempts": 39,
+      "transactionCalls": 20,
+      "bookedPeople": 1,
+      "pendingAfterCompletion": 0,
+      "errors": [],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 1,
+            "recordedPeople": 1,
+            "reservations": 1,
+            "waiting": 1
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          }
+        ],
+        "reservationDocuments": 1,
+        "activeReservations": 1,
+        "activePeople": 1,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "One employee gets exactly one reservation across 20 devices",
+            "passed": true
+          },
+          {
+            "description": "One reservation and one occupied seat exist",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "cancel-duplicate-40",
+      "requested": 20,
+      "completed": 20,
+      "timedOut": false,
+      "elapsedMs": 1582,
+      "outcomes": {
+        "booked": 20
+      },
+      "latencyMs": {
+        "p50": 1030,
+        "p95": 1558,
+        "max": 1582
+      },
+      "transactionAttempts": 38,
+      "transactionCalls": 20,
+      "bookedPeople": 20,
+      "pendingAfterCompletion": 0,
+      "errors": [],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 20,
+            "recordedPeople": 20,
+            "reservations": 20,
+            "waiting": 20
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          }
+        ],
+        "reservationDocuments": 20,
+        "activeReservations": 20,
+        "activePeople": 20,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "cancellation": {
+        "requested": 40,
+        "completed": 40,
+        "timedOut": false,
+        "elapsedMs": 1703,
+        "outcomes": {
+          "cancelled": 20,
+          "already_cancelled": 20
+        },
+        "latencyMs": {
+          "p50": 1207,
+          "p95": 1577,
+          "max": 1703
+        },
+        "transactionAttempts": 79,
+        "transactionCalls": 40,
+        "bookedPeople": 0,
+        "pendingAfterCompletion": 0,
+        "errors": []
+      },
+      "afterCancellation": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          }
+        ],
+        "reservationDocuments": 20,
+        "activeReservations": 0,
+        "activePeople": 0,
+        "cancelledReservations": 20,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "All 20 initial reservations succeeded",
+            "passed": true
+          },
+          {
+            "description": "Each duplicate cancellation changes the reservation once",
+            "passed": true
+          },
+          {
+            "description": "All 20 reservations are cancelled and every seat is restored",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "server-unavailable",
+      "requested": 1,
+      "completed": 1,
+      "timedOut": false,
+      "elapsedMs": 26,
+      "outcomes": {
+        "error": 1
+      },
+      "latencyMs": {
+        "p50": 26,
+        "p95": 26,
+        "max": 26
+      },
+      "transactionAttempts": 0,
+      "transactionCalls": 1,
+      "bookedPeople": 0,
+      "pendingAfterCompletion": 0,
+      "errors": [
+        {
+          "emp": "1000",
+          "errors": [
+            {
+              "code": "unavailable",
+              "message": "unavailable"
+            }
+          ],
+          "toast": "서버에 연결하지 못했어요. 저장된 예약이 없으니 다시 예약해주세요."
+        }
+      ],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          }
+        ],
+        "reservationDocuments": 0,
+        "activeReservations": 0,
+        "activePeople": 0,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "Injected SDK rejection was caught with an error notice",
+            "passed": true
+          },
+          {
+            "description": "Injected failure created no reservation or seat count",
+            "passed": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "permission-denied",
+      "requested": 1,
+      "completed": 1,
+      "timedOut": false,
+      "elapsedMs": 0,
+      "outcomes": {
+        "error": 1
+      },
+      "latencyMs": {
+        "p50": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "transactionAttempts": 0,
+      "transactionCalls": 1,
+      "bookedPeople": 0,
+      "pendingAfterCompletion": 0,
+      "errors": [
+        {
+          "emp": "1000",
+          "errors": [
+            {
+              "code": "permission-denied",
+              "message": "permission-denied"
+            }
+          ],
+          "toast": "예약 권한을 확인하지 못했어요. 관리자에게 문의해주세요."
+        }
+      ],
+      "audit": {
+        "slots": [
+          {
+            "time": "11:40",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:45",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:50",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "11:55",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          },
+          {
+            "time": "12:00",
+            "capacity": 50,
+            "actualPeople": 0,
+            "recordedPeople": 0,
+            "reservations": 0,
+            "waiting": 0
+          }
+        ],
+        "reservationDocuments": 0,
+        "activeReservations": 0,
+        "activePeople": 0,
+        "cancelledReservations": 0,
+        "consistent": true,
+        "violations": []
+      },
+      "validation": {
+        "integrityPass": true,
+        "completionPass": true,
+        "scenarioPass": true,
+        "checks": [
+          {
+            "description": "All requests completed within 60 seconds and released pending state",
+            "passed": true
+          },
+          {
+            "description": "Injected SDK rejection was caught with an error notice",
+            "passed": true
+          },
+          {
+            "description": "Injected failure created no reservation or seat count",
+            "passed": true
+          }
+        ]
+      }
+    }
+  ]
+}
