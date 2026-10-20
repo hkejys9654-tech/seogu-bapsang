@@ -372,8 +372,10 @@ let dataState={reservation:"loading",slots:"loading",controls:"loading",penalty:
 const ledgerMigrations=new Set();
 const CALL_OPEN_NOTICE="호출을 기다리는 동안 이 화면을 켜두세요. 화면을 닫거나 잠그면 호출 알림을 받을 수 없어요.";
 
+const restoredAdminSession=getLocal("admin_session",null)===ADMIN_CODE_SHA256;
+let adminSessionEpoch=0;
 let st={
-  tab:"home",
+  tab:restoredAdminSession?"more":"home",
   date:todayDate(),
   slot:SLOTS[0][0],
   bookingType:"individual",
@@ -384,7 +386,7 @@ let st={
   penalties:getLocal("penalties",{}),
   queueControls:getLocal("queueControls",{}),
   showHistory:false,
-  adminUnlocked:false,
+  adminUnlocked:restoredAdminSession,
   adminTab:"call",
   adminCallSlot:SLOTS[0][0],
   scanStream:null,
@@ -475,6 +477,7 @@ async function init(){
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){refreshDataScope();refreshOverview();}});
   window.addEventListener("offline",()=>{render()});
   window.addEventListener("online",()=>retryConnection());
+  window.addEventListener("storage",syncAdminLogout);
   if("serviceWorker" in navigator)ensureCallWorker().catch(()=>{});
   if(notificationPermission()==="granted"&&st.user)setupPushMessaging(false);
 }
@@ -518,7 +521,7 @@ async function refreshOverview(force=false){
 // Admin-only, one-time legacy ledger backfill. Every reservation mutation must
 // atomically touch its slotCounts document, so it also invalidates this guard.
 async function ensureQueueLedger(date,time){
-  const allowed=()=>firebaseOn&&db&&st.adminUnlocked&&st.date===date;
+  const allowed=()=>firebaseOn&&db&&isAdminData()&&st.date===date;
   if(!allowed())return {complete:false,reason:"not-admin-context"};
   const ref=db.collection("slotCounts").doc(slotId(date,time));
   const baseline=await ref.get({source:"server"});
@@ -730,7 +733,7 @@ function isOverflowChoice(){return false;}
 
 function overflowQuotaReleased(){const now=new Date(),release=new Date();release.setHours(OVERFLOW_RELEASE_HOUR,OVERFLOW_RELEASE_MINUTE,0,0);return now>=release}
 function saveLogin(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("name").value.trim(),orgKey=document.getElementById("org").value,dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim(),org=organizationByKey(orgKey);if(!name)return toast("이름을 입력해주세요.");if(!org)return toast("국·기관을 선택해주세요.");if(!dept||!org.departments.includes(dept))return toast("소속 부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();updateLoginState();render();toast("직원 정보가 저장되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
-function go(tab){if(tab==="reserve")tab="home";st.tab=tab;if(tab!=="more"){st.adminUnlocked=false;stopScanner();}refreshDataScope();if(tab==="home")refreshOverview();render();}
+function go(tab){if(tab==="reserve")tab="home";st.tab=tab;if(tab!=="more")stopScanner();refreshDataScope();if(tab==="home")refreshOverview();render();}
 function shift(days){const d=new Date(st.date+"T00:00:00");d.setDate(d.getDate()+days);st.date=fmt(d);refreshDataScope();render();}
 function quick(n){const d=new Date();d.setDate(d.getDate()+n);st.date=fmt(d);refreshDataScope();render();}
 function activeQuick(n){const d=new Date();d.setDate(d.getDate()+n);return st.date===fmt(d)?"active":""}
@@ -1193,7 +1196,7 @@ async function checkinByCode(text){
 
 
 function historyView(){const list=historyRows.filter(r=>st.user&&r.emp===st.user.emp).sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));return `<div class="card"><div class="row"><div class="title" style="margin:0">최근 30일 예약 내역</div><button class="btn light small" onclick="toggleHistory()">닫기</button></div><div class="line"></div>${historyLoading?"불러오는 중…":historyError?esc(historyError):!list.length?"최근 30일 예약 내역이 없습니다.":list.map(r=>`<div class="reservation-item"><div class="row"><div><div style="font-weight:900">${pretty(r.date)} ${esc(r.time)}</div><div class="sub">${reservationLabel(r)} · ${partySizeOf(r)}명 · ${esc(r.place)}</div></div><span class="pill">${r.status==="checkedin"?"입장완료":r.status==="cancelled"?"취소":r.status==="noshow"?"노쇼":"예약"}</span></div></div>`).join("")}</div>`;}
-function adminView(){return `<div class="card"><div class="row"><div><div class="title">관리자 모드</div><div class="sub">입장 흐름과 예약 현황을 실시간으로 관리합니다.</div></div><button class="btn light small" onclick="closeAdmin()">닫기</button></div><div class="line"></div><div class="admin-tabs"><button class="${st.adminTab==="call"?"active":""}" onclick="setAdminTab('call')">입장호출</button><button class="${st.adminTab==="camera"?"active":""}" onclick="setAdminTab('camera')">QR확인</button><button class="${st.adminTab==="reservations"?"active":""}" onclick="setAdminTab('reservations')">예약자</button><button class="${st.adminTab==="notice"?"active":""}" onclick="setAdminTab('notice')">공지</button></div>${adminPanel()}</div>`}
+function adminView(){return `<div class="card"><div class="row"><div><div class="title">관리자 모드</div><div class="sub">입장 흐름과 예약 현황을 실시간으로 관리합니다.</div></div><button class="btn light small" onclick="closeAdmin()">관리자 로그아웃</button></div><div class="line"></div><div class="admin-tabs"><button class="${st.adminTab==="call"?"active":""}" onclick="setAdminTab('call')">입장호출</button><button class="${st.adminTab==="camera"?"active":""}" onclick="setAdminTab('camera')">QR확인</button><button class="${st.adminTab==="reservations"?"active":""}" onclick="setAdminTab('reservations')">예약자</button><button class="${st.adminTab==="notice"?"active":""}" onclick="setAdminTab('notice')">공지</button></div>${adminPanel()}</div>`}
 function adminPanel(){if(st.adminTab==="call")return callPanel();if(st.adminTab==="camera")return cameraPanel();if(st.adminTab==="reservations")return reservationPanel();return noticePanel()}
 function callPanel(){
   const time=st.adminCallSlot,date=st.date,closed=isQueueClosed(date,time),rows=queueRows(date,time),waiting=rows.filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed"),retryWaiting=totalPeople(waiting.filter(r=>Number(r.requeueCount||0)>0)),called=rows.filter(r=>r.status==="reserved"&&r.callStatus==="called"),done=rows.filter(r=>r.status==="checkedin"||r.callStatus==="passed"),waitingPeople=totalPeople(waiting),calledPeople=totalPeople(called),donePeople=totalPeople(done),token=called[0]&&called[0].callToken||"";
@@ -1211,7 +1214,7 @@ function rules(){openModal("이용 안내",`<ul class="menu-list"><li><b>예약 
 
 function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
 function applyEditUser(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();closeModal();render();toast("소속 정보가 수정되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
-function logout(){if(reserve.pending||reserveFirebase.pending)return toast("예약 저장을 마친 뒤 다시 시도해주세요.");st.user=null;st.adminUnlocked=false;stopScanner();try{localStorage.removeItem("sg_real_user")}catch(e){console.warn(e)}refreshDataScope();populateOrganizationSelect("org","");populateDeptSelect("org","dept","");updateLoginState();render();toast("로그아웃되었습니다.");}
+function logout(){if(reserve.pending||reserveFirebase.pending)return toast("예약 저장을 마친 뒤 다시 시도해주세요.");st.user=null;const adminCleared=setAdminSession(false);stopScanner();try{localStorage.removeItem("sg_real_user")}catch(e){console.warn(e)}refreshDataScope();populateOrganizationSelect("org","");populateDeptSelect("org","dept","");updateLoginState();render();toast(adminCleared?"로그아웃되었습니다.":"저장된 관리자 정보를 지우지 못했어요. 브라우저의 사이트 데이터를 삭제해주세요.");}
 async function toggleHistory(){
   st.showHistory=!st.showHistory;if(!st.showHistory){render();return;}
   if(!firebaseOn){historyRows=st.reservations.filter(r=>st.user&&r.emp===st.user.emp);render();return;}
@@ -1227,12 +1230,31 @@ async function verifyAdminCode(value){
   return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,"0")).join("")===ADMIN_CODE_SHA256;
 }
 async function unlockAdmin(){
+  if(st.adminUnlocked){go("more");return;}
   const pw=prompt("관리자 비밀번호를 입력해주세요.");if(pw===null)return;
-  try{if(await verifyAdminCode(pw)){st.adminUnlocked=true;st.adminTab="call";st.adminCallSlot=st.adminCallSlot||SLOTS[0][0];refreshDataScope();render();toast("입장 호출 화면이 열렸습니다.")}else toast("관리자 비밀번호가 올바르지 않습니다.");}
+  const attempt=++adminSessionEpoch;
+  try{const valid=await verifyAdminCode(pw);if(attempt!==adminSessionEpoch)return;if(valid){const remembered=setAdminSession(true);st.adminTab="call";st.adminCallSlot=st.adminCallSlot||SLOTS[0][0];refreshDataScope();render();toast(remembered?"입장 호출 화면이 열렸습니다.":"관리자 화면을 열었지만 이 기기에 저장하지 못했어요. 다음 접속 때 비밀번호를 다시 입력해주세요.")}else toast("관리자 비밀번호가 올바르지 않습니다.");}
   catch(error){toast("관리자 화면을 열지 못했습니다. 연결 주소와 브라우저를 확인해주세요.");}
 }
 
-function closeAdmin(){st.adminUnlocked=false;stopScanner();refreshDataScope();render()}
+// Remember only this browser's existing screen-unlock state, never the password.
+function setAdminSession(enabled){
+  adminSessionEpoch++;
+  st.adminUnlocked=enabled;
+  try{
+    if(enabled)localStorage.setItem("sg_real_admin_session",JSON.stringify(ADMIN_CODE_SHA256));
+    else localStorage.removeItem("sg_real_admin_session");
+    return true;
+  }catch(error){console.warn("Admin session storage is unavailable.");return false;}
+}
+function syncAdminLogout(event){
+  if(event.key!==null&&event.key!=="sg_real_admin_session")return;
+  if(getLocal("admin_session",null)===ADMIN_CODE_SHA256)return;
+  adminSessionEpoch++;
+  if(!st.adminUnlocked)return;
+  st.adminUnlocked=false;stopScanner();refreshDataScope();render();
+}
+function closeAdmin(){const cleared=setAdminSession(false);stopScanner();refreshDataScope();render();toast(cleared?"관리자 모드에서 로그아웃되었습니다.":"저장된 관리자 정보를 지우지 못했어요. 브라우저의 사이트 데이터를 삭제해주세요.")}
 function setAdminTab(tab){st.adminTab=tab;if(tab!=="camera")stopScanner();render()}
 function setCallSlot(time){if(!SLOTS.some(s=>s[0]===time))return;st.adminCallSlot=time;render()}
 function newCallToken(){const words=["솔잎","한결","새봄","느티","푸른","이음","바른","마루","온빛","다온"];return "초록 · "+words[Math.floor(Math.random()*words.length)]}

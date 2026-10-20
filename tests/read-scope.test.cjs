@@ -6,7 +6,7 @@ const path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match=>match[1]).join('\n');
 const DAY='2026-10-17';
-function setup(){
+function setup({storage=new Map(),failStorageWrites=false,failStorageRemoval=false}={}){
   const gets=[],listeners=[],notices=[],toasts=[],events={};
   const records=new Map();
   for(const time of ['1140','1145','1150','1155','1200'])records.set(`slotCounts/${DAY}_${time}`,{count:12,queueLedgerVersion:1,queueEntries:{}});
@@ -34,11 +34,11 @@ function setup(){
   const context={__db:db,__notices:notices,__toasts:toasts,console:{error(){},warn(){}},Promise,Date,URLSearchParams,URL,AbortController,Map,Set,
     setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},navigator:{onLine:true},location:{search:'',reload(){}},
     document:{addEventListener:(name,fn)=>{events[name]=fn;},getElementById:()=>null,querySelectorAll:()=>[],visibilityState:'visible'},window:{addEventListener:(name,fn)=>{events[name]=fn;}},
-    localStorage:{getItem:()=>null,setItem(){},removeItem(){}},firebase:{initializeApp(){},firestore},prompt:()=> 'test-admin-code',confirm:()=>true};
+    localStorage:{getItem:key=>storage.get(key)??null,setItem(key,value){if(failStorageWrites)throw Error('Storage unavailable');storage.set(key,value)},removeItem(key){if(failStorageRemoval)throw Error('Storage unavailable');storage.delete(key)}},firebase:{initializeApp(){},firestore},prompt:()=> 'test-admin-code',confirm:()=>true};
   vm.createContext(context);vm.runInContext(source,context);
   vm.runInContext(`verifyAdminCode=async value=>value==="test-admin-code";render=()=>{};toast=message=>__toasts.push(message);stopScanner=()=>{};populateOrganizationSelect=()=>{};populateDeptSelect=()=>{};updateLoginState=()=>{};migrateUserOrganization=()=>{};notifyCall=r=>__notices.push(r);todayDate=()=> '${DAY}';st.date='${DAY}';st.user={emp:'1234',name:'Test',orgKey:'planning',dept:'기획실'};`,context);
   const run=code=>vm.runInContext(code,context);
-  return{gets,listeners,notices,toasts,records,events,run,flush:()=>new Promise(resolve=>setImmediate(resolve)),
+  return{gets,listeners,notices,toasts,records,events,storage,run,flush:()=>new Promise(resolve=>setImmediate(resolve)),
     async start(){run('firebaseOn=true;db=__db;refreshDataScope(true)');await this.flush();},
     active:path=>listeners.filter(listener=>listener.active&&listener.path===path),
     emit(listener,data,cache=false){if(listener.id!==null)listener.callback(snap(listener.id,data,cache));else{const docs=data.map((item,i)=>snap(item.id||String(i),item,cache));listener.callback({docs,metadata:{fromCache:cache},forEach:fn=>docs.forEach(fn)});}}
@@ -122,4 +122,74 @@ test('connection retry replaces failed listeners instead of accumulating subscri
   const h=setup();await h.start();const own=h.active(`reservations/${DAY}_1234`)[0];own.error(Error('offline'));assert.equal(h.run('dataState.reservation'),'error');
   h.run('retryConnection()');await h.flush();assert.equal(own.active,false);assert.equal(h.active(`reservations/${DAY}_1234`).length,1);
   assert.equal(h.listeners.filter(l=>l.active).length,2);assert.equal(h.gets.filter(g=>g.name==='notices').at(-1).limit,10);
+});
+
+test('verified administrator is restored on browser reopen without saving the password',async()=>{
+  const storage=new Map(),first=setup({storage});
+  assert.equal(first.run('st.adminUnlocked'),false);
+  await first.run('st.tab="more";unlockAdmin()');
+  assert.equal(storage.size,1);assert.equal([...storage.values()].some(value=>value.includes('test-admin-code')),false);
+  const reopened=setup({storage});
+  assert.equal(reopened.run('st.adminUnlocked'),true);assert.equal(reopened.run('st.tab'),'more');
+  await reopened.start();assert.equal(reopened.active('reservations').length,1);
+  reopened.run('prompt=()=>{throw Error("Must not ask twice")};unlockAdmin()');
+  assert.equal(reopened.toasts.some(t=>t.includes('열지 못했습니다')),false);
+  assert.equal(setup().run('st.adminUnlocked'),false);
+});
+
+test('administrator stays unlocked across navigation while full-list reads remain limited to settings',async()=>{
+  const h=setup();await h.start();await h.run('st.tab="more";unlockAdmin()');await h.flush();
+  h.run('go("home")');await h.flush();
+  assert.equal(h.run('st.adminUnlocked'),true);assert.equal(h.listeners.some(l=>l.active&&l.id===null),false);
+  const before=h.gets.length;const result=await h.run(`ensureQueueLedger('${DAY}','11:40')`);
+  assert.equal(result.complete,false);assert.equal(h.gets.length,before);
+  h.run('go("my")');await h.flush();assert.equal(h.run('st.adminUnlocked'),true);
+  h.run('go("more")');await h.flush();assert.equal(h.active('reservations').length,1);
+});
+
+test('both explicit logout controls clear remembered administrator state before reopen',async()=>{
+  for(const action of ['closeAdmin()','logout()']){
+    const h=setup();await h.start();await h.run('st.tab="more";unlockAdmin()');await h.flush();
+    h.run(action);await h.flush();
+    assert.equal(h.run('st.adminUnlocked'),false);assert.equal(h.storage.has('sg_real_admin_session'),false);
+    assert.equal(h.listeners.some(l=>l.active&&l.id===null),false);
+    assert.equal(setup({storage:h.storage}).run('st.adminUnlocked'),false);
+  }
+});
+
+test('incorrect code and obsolete remembered code cannot unlock administrator mode',async()=>{
+  const h=setup({storage:new Map([['sg_real_admin_session',JSON.stringify('obsolete-code')]])});
+  assert.equal(h.run('st.adminUnlocked'),false);
+  await h.run('prompt=()=>"wrong";unlockAdmin()');
+  assert.equal(h.run('st.adminUnlocked'),false);assert.ok(h.toasts.at(-1).includes('올바르지 않습니다'));
+  assert.equal(setup({storage:h.storage}).run('st.adminUnlocked'),false);
+});
+
+test('a late password verification cannot restore administrator mode after logout',async()=>{
+  const h=setup();
+  h.run('let finishVerification;verifyAdminCode=()=>new Promise(resolve=>{finishVerification=resolve})');
+  const pending=h.run('unlockAdmin()');h.run('logout();finishVerification(true)');await pending;
+  assert.equal(h.run('st.adminUnlocked'),false);assert.equal(h.storage.has('sg_real_admin_session'),false);
+});
+
+test('explicit logout in another tab removes current administrator listeners',async()=>{
+  const storage=new Map(),first=setup({storage});await first.run('unlockAdmin()');
+  const other=setup({storage});await other.start();assert.equal(other.active('reservations').length,1);
+  first.run('closeAdmin()');other.run('syncAdminLogout({key:"sg_real_admin_session"})');await other.flush();
+  assert.equal(other.run('st.adminUnlocked'),false);assert.equal(other.listeners.some(l=>l.active&&l.id===null),false);
+});
+
+test('unavailable device storage reports that administrator persistence could not be saved',async()=>{
+  const h=setup({failStorageWrites:true});await h.run('unlockAdmin()');
+  assert.equal(h.run('st.adminUnlocked'),true);assert.equal(h.storage.size,0);
+  assert.ok(h.toasts.at(-1).includes('저장하지 못했어요'));
+  assert.equal(setup({storage:h.storage}).run('st.adminUnlocked'),false);
+});
+
+test('logout never claims remembered access was cleared when device storage removal fails',async()=>{
+  for(const action of ['closeAdmin()','logout()']){
+    const h=setup({failStorageRemoval:true});await h.run('unlockAdmin()');h.run(action);
+    assert.equal(h.run('st.adminUnlocked'),false);assert.equal(h.storage.has('sg_real_admin_session'),true);
+    assert.ok(h.toasts.at(-1).includes('지우지 못했어요'));
+  }
 });
