@@ -253,6 +253,7 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .ticket-range{position:relative;z-index:1;font-size:14px;font-weight:900;color:var(--ticket-ink);margin-top:-4px}
 .member-box{margin:10px 0 4px;padding:12px;border-radius:16px;background:#fff;border:1px solid #fed7aa}
 .member-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;font-size:14px}
+.member-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}.member-mode button{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 6px;font:inherit;font-size:13px;font-weight:900;color:#57534e;cursor:pointer;line-height:1.3}.member-mode button.active{border-color:var(--orange);background:#fff7ed;color:#c2410c}
 .member-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .member-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 6px 6px 11px;border-radius:999px;background:#fff7ed;border:1px solid #fdba74;font-size:13px;font-weight:900}
 .member-chip small{font-weight:700;color:var(--muted);font-size:11px}
@@ -406,6 +407,7 @@ let st={
   adminCallSize:10,
   members:[],
   memberQuery:"",
+  memberMode:"link",
   memberResults:[],
   memberSearching:false,
   companion:null,
@@ -512,14 +514,19 @@ function addMember(emp){
   st.memberResults=[];st.memberQuery="";render();
 }
 function removeMember(emp){if(reserve.pending||reserveFirebase.pending)return;st.members=st.members.filter(m=>m.emp!==emp);render();}
+function setMemberMode(mode){if(reserve.pending||reserveFirebase.pending)return;st.memberMode=mode==="search"?"search":"link";st.memberResults=[];render();if(st.memberMode==="search")setTimeout(()=>{const el=document.getElementById("memberQuery");if(el)el.focus()},0);}
 function memberPicker(partySize){
-  const rest=partySize-1-st.members.length;
+  const search=st.memberMode==="search";
   return `<div class="member-box">
-    <div class="member-head"><b>함께 갈 직원</b><span class="tiny">앱에 등록한 직원만 검색돼요</span></div>
+    <div class="member-head"><b>같이 가는 사람 입장표는 이렇게 줄 수 있어요</b></div><div class="tiny" style="margin:-4px 0 8px">둘 중 편한 방법을 고르세요. 검색은 앱에 등록한 직원만 나와요.</div>
+    <div class="member-mode" role="group" aria-label="동행 입장표 주는 방법">
+      <button class="${search?"":"active"}" onclick="setMemberMode('link')" aria-pressed="${!search}">카톡 링크로 보내기</button>
+      <button class="${search?"active":""}" onclick="setMemberMode('search')" aria-pressed="${search}">이름 검색해서 넣기</button>
+    </div>
     ${st.members.length?`<div class="member-chips">${st.members.map(m=>`<span class="member-chip">${esc(m.name)}<small>${esc(m.dept)}</small><button onclick="removeMember('${esc(m.emp)}')" aria-label="${esc(m.name)} 빼기">×</button></span>`).join("")}</div>`:""}
-    <div class="member-search"><input id="memberQuery" class="input" placeholder="이름으로 찾기" value="${esc(st.memberQuery)}" onkeydown="if(event.key==='Enter')searchMembers()" autocomplete="off"><button class="btn light small" onclick="searchMembers()" ${st.memberSearching?"disabled":""}>${st.memberSearching?"찾는 중":"찾기"}</button></div>
-    ${st.memberResults.length?`<div class="member-results">${st.memberResults.map(s=>`<button onclick="addMember('${esc(s.emp)}')"><span><b>${esc(s.name)}</b> · ${esc(s.dept||"")}</span><span class="member-add">추가</span></button>`).join("")}</div>`:""}
-    <div class="tiny member-rest">${rest>0?`나머지 ${rest}명은 예약 후 입장표에서 링크로 보내면 돼요.`:"선택한 직원도 자기 앱에서 같은 입장표를 보게 돼요."}</div>
+    ${search?`<div class="member-search"><input id="memberQuery" class="input" placeholder="이름으로 찾기" value="${esc(st.memberQuery)}" onkeydown="if(event.key==='Enter')searchMembers()" autocomplete="off"><button class="btn light small" onclick="searchMembers()" ${st.memberSearching?"disabled":""}>${st.memberSearching?"찾는 중":"찾기"}</button></div>
+    ${st.memberResults.length?`<div class="member-results">${st.memberResults.map(s=>`<button onclick="addMember('${esc(s.emp)}')"><span><b>${esc(s.name)}</b> · ${esc(s.dept||"")}</span><span class="member-add">추가</span></button>`).join("")}</div>`:""}`:""}
+    <div class="tiny member-rest">${search?(partySize-1-st.members.length>0?"고른 직원은 자기 앱에서 같은 입장표를 봐요. 나머지 인원은 예약 후 입장표에서 링크로 보내면 돼요.":"고른 직원은 자기 앱에서 같은 입장표를 봐요."):(st.members.length?"고른 직원은 자기 앱에서 같은 입장표를 봐요. 나머지 인원은 예약 후 입장표에서 링크로 보내면 돼요.":"바로 예약하고, 입장표에서 링크를 카톡으로 보내면 돼요.")}</div>
   </div>`;
 }
 function membersText(r){const m=(r&&r.members)||[];return m.length?m.map(v=>v.name).join(", "):""}
@@ -930,7 +937,7 @@ function blockMessage(emp,date=todayDate()){
   return `전일 노쇼 이력으로 ${pretty(p.blockDate)} 예약이 제한됩니다.`;
 }
 
-function setBookingType(type){if(reserve.pending||reserveFirebase.pending)return;st.bookingType=type==="group"?"group":"individual";if(st.bookingType!=="group"){st.members=[];st.memberResults=[];}if(st.bookingType==="group")st.partySize=Math.max(2,Math.min(10,Number(st.partySize)||2));render()}
+function setBookingType(type){if(reserve.pending||reserveFirebase.pending)return;st.bookingType=type==="group"?"group":"individual";if(st.bookingType!=="group"){st.members=[];st.memberResults=[];st.memberMode="link";}if(st.bookingType==="group")st.partySize=Math.max(2,Math.min(10,Number(st.partySize)||2));render()}
 function changePartySize(delta){if(reserve.pending||reserveFirebase.pending)return;st.partySize=Math.max(2,Math.min(10,selectedPartySize()+Number(delta||0)));render()}
 function selectSlot(time){if(reserve.pending||reserveFirebase.pending)return;const org=userOrganization(),date=todayDate(),assigned=org?assignedSlot(org.key,date):"",size=selectedPartySize();if(!assigned)return toast("소속 정보를 먼저 등록해주세요.");if(!isEligibleTime(time,date,org))return toast(`${org.name}은 ${assigned}부터 예약할 수 있습니다.`);if(!canBookTime(date,time,org,size))return toast(remain(date,time)<size?`${size}명이 함께 예약할 잔여석이 부족합니다.`:isOverflowChoice(time,date,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.");st.slot=time;render()}
 let uiNoticeDraft=null,uiNoticeSaving=false,uiScannerGeneration=0,uiScannerPending=false,uiStorageWarningShown=false;
