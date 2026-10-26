@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const path=require('node:path');
 const html=fs.readFileSync(process.env.CALL_FLOW_HTML||path.join(__dirname,'../index.html'),'utf8');
 function functionSource(name){const starts=[...html.matchAll(/^(?:async )?function [A-Za-z_$][\w$]*\(/gm)];const index=starts.findIndex(m=>m[0].includes(`function ${name}(`));assert.ok(index>=0);return html.slice(starts[index].index,starts[index+1]?.index||html.length);}
-const source=['takeWaitingByPeople','setCallSize','callPanel'].map(functionSource).join('\n')+'\n'+html.slice(html.indexOf('async function callNext(size){'),html.indexOf('async function addNotice(){'));
+const source=['takeWaitingByPeople','setCallSize','callBreakdown','callPanel'].map(functionSource).join('\n')+'\n'+html.slice(html.indexOf('async function callNext(size){'),html.indexOf('async function addNotice(){'));
 const SLOTS=JSON.parse(html.match(/^const SLOTS=(\[[^;]+\]);/m)[1]);
 const date='2026-10-17',time='11:40',slot=`${date}_1140`;
 function setup(options={}){
@@ -28,7 +28,7 @@ function setup(options={}){
   }};
   const context={st,db,SLOTS,pretty:value=>value,esc:value=>String(value||''),firebaseOn:options.firebaseOn!==false,firebase:{firestore:{FieldValue:{serverTimestamp:()=>123}}},console:{error(){}},todayDate:()=>date,
     isQueueClosed:(d,t)=>Boolean(st.queueControls[`${d}_${t.replace(':','')}`]?.closed),slotId:(d,t)=>`${d}_${t.replace(':','')}`,queueControlKey:(d,t)=>`${d}_${t.replace(':','')}`,
-    queueRows:(d,t)=>st.reservations.filter(r=>r.date===d&&r.time===t&&r.status!=='cancelled'&&r.status!=='noshow'),partySizeOf:r=>r.partySize||1,totalPeople:rs=>rs.reduce((n,r)=>n+(r.partySize||1),0),
+    queueRows:(d,t)=>st.reservations.filter(r=>r.date===d&&r.time===t&&r.status!=='cancelled'&&r.status!=='noshow'),partySizeOf:r=>r.partySize||1,queueNumberFor:r=>Number(r.queueNumber)||0,totalPeople:rs=>rs.reduce((n,r)=>n+(r.partySize||1),0),
     newCallToken:()=> '초록 · 테스트',
     queueLedgerPatch:(data,before,after)=>{ledgerCalls.push({before,after});return{date:after.date,time:after.time,queueLedgerVersion:data.queueLedgerVersion,queueEntries:{...data.queueEntries,[after.queueNumber]:{size:after.partySize,waiting:after.callStatus!=='called'&&after.callStatus!=='passed'}}};},
     toast:text=>toasts.push(text),saveLocal(){},render(){},notifyCall(){}};
