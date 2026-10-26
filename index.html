@@ -250,6 +250,8 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .slot-row.disabled{opacity:.45;background:#f8fafc}
 .sr-radio{flex:0 0 auto;width:20px;height:20px;border-radius:999px;border:2px solid #d1d5db;background:#fff}
 .slot-row.active .sr-radio{border-color:var(--orange);box-shadow:inset 0 0 0 4px #fff;background:var(--orange)}
+.ticket-range{position:relative;z-index:1;font-size:14px;font-weight:900;color:var(--ticket-ink);margin-top:-4px}
+.sr-time small{font-size:12px;font-weight:800;color:var(--muted);margin-left:2px;letter-spacing:0}
 .sr-time{flex:0 0 auto;font-size:20px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
 .sr-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
 .sr-bar{display:block;height:6px;border-radius:999px;background:#eceff3;overflow:hidden}.sr-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ffb07a,#ff6a00)}
@@ -415,7 +417,7 @@ const views={
       <div class="row" style="margin-bottom:10px"><div class="step" style="margin:0"><span class="step-no">2</span>언제 들어갈까요?</div><button class="link-btn" style="margin:0;font-size:12px" onclick="refreshOverview()" aria-label="잔여석 새로고침">새로고침</button></div>
       <div class="slot-list">${SLOTS.map(s=>slotRow(s,bookingDate,org,assigned,partySize,blocked)).join("")}</div>
       ${blocked?`<div class="noshow-warning">${blockMessage(st.user.emp,bookingDate)}</div>`:""}
-      <div class="cta-sticky"><button class="btn primary full big" onclick="reserve()" ${canBook?"":"disabled"}>${reserve.pending||reserveFirebase.pending?"예약 저장 중…":!st.user?"직원 정보 등록 필요":blocked?"오늘은 예약할 수 없어요":!reservationWindowOpen()?(reservationWindowState()==="before"?"오전 10시 예약 시작":"오늘 예약 마감"):canBook?`${st.slot} · ${partySize>1?partySize+"명 ":""}예약하기`:"시간을 골라주세요"}</button></div>
+      <div class="cta-sticky"><button class="btn primary full big" onclick="reserve()" ${canBook?"":"disabled"}>${reserve.pending||reserveFirebase.pending?"예약 저장 중…":!st.user?"직원 정보 등록 필요":blocked?"오늘은 예약할 수 없어요":!reservationWindowOpen()?(reservationWindowState()==="before"?"오전 10시 예약 시작":"오늘 예약 마감"):canBook?`${st.slot}~${slotEndTime(st.slot)} · ${partySize>1?partySize+"명 ":""}예약하기`:"시간을 골라주세요"}</button></div>
       <div class="tiny" style="margin-top:10px;text-align:center;line-height:1.6">예약한 입장시간을 넘기면 <b>12시 10분 이후에 식사해 주세요.</b></div>
     </div>
     <button class="link-btn" onclick="rules()">이용 안내 보기</button>`;
@@ -432,7 +434,7 @@ const views={
         <div class="ticket-queue">${esc(r.time)} 대기번호 · ${String(queueNo).padStart(3,"0")}번</div>
         ${waiting?`<div class="ticket-ahead">${queueAheadText(r)}</div>`:""}
         <div class="ticket-label">입장 예약시간</div>
-        <div class="ticket-time">${esc(r.time)}</div>
+        <div class="ticket-time">${esc(r.time)}</div><div class="ticket-range">${esc(r.time)}~${slotEndTime(r.time)}</div>
         <div class="ticket-status">${call.status}</div>
         ${call.token?`<div class="ticket-token">확인표시 · ${esc(call.token)}</div>`:""}
         <div class="ticket-owner">${esc(r.name)} · ${esc(orgName)} · ${esc(r.dept)}</div>
@@ -451,7 +453,7 @@ function slotRow(s,date,org,assigned,partySize,blocked){
   const time=s[0],cap=s[1],rem=remain(date,time),used=cap-rem,available=!blocked&&canBookTime(date,time,org,partySize),active=available&&st.slot===time,stt=status(rem,cap);
   const tag=isQueueClosed(date,time)?["운영 마감","gray"]:!org?["선착순",""]:rem<=0?["마감","gray"]:partySize>rem?["자리 부족","gray"]:[stt[0],stt[1]];
   const meta=firebaseOn&&dataState.slots!=="ready"?"확인 중":!org?`정원 ${cap}명`:`${rem}명 남음`;
-  return `<button class="slot-row ${active?"active":""} ${available?"":"disabled"}" onclick="selectSlot('${time}')" ${available?"":"aria-disabled=\"true\""}><span class="sr-radio"></span><span class="sr-time">${time}</span><span class="sr-mid"><span class="sr-bar"><i style="width:${Math.min(100,Math.round(used/cap*100))}%"></i></span><span class="sr-meta">${meta}</span></span><span class="sr-tag ${tag[1]}">${tag[0]}</span></button>`;
+  return `<button class="slot-row ${active?"active":""} ${available?"":"disabled"}" onclick="selectSlot('${time}')" ${available?"":"aria-disabled=\"true\""}><span class="sr-radio"></span><span class="sr-time">${time}<small>~${slotEndTime(time)}</small></span><span class="sr-mid"><span class="sr-bar"><i style="width:${Math.min(100,Math.round(used/cap*100))}%"></i></span><span class="sr-meta">${meta}</span></span><span class="sr-tag ${tag[1]}">${tag[0]}</span></button>`;
 }
 
 function queueAhead(r){
