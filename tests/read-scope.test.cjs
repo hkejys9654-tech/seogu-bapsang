@@ -49,8 +49,8 @@ const reservation=(changes={})=>({emp:'1234',date:DAY,time:'11:40',status:'reser
 test('ordinary employee listens to only own reservation and own penalty, never full collections',async()=>{
   const h=setup();await h.start();
   assert.deepEqual(h.listeners.filter(l=>l.active).map(l=>l.path).sort(),[`penalties/1234`,`reservations/${DAY}_1234`]);
-  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,5);
-  assert.equal(h.gets.filter(g=>g.name==='queueControls').length,5);
+  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,6);
+  assert.equal(h.gets.filter(g=>g.name==='queueControls').length,6);
   assert.equal(h.gets.some(g=>['reservations','penalties'].includes(g.name)&&g.id===null),false);
 });
 
@@ -62,10 +62,10 @@ test('reservation opens only its own anonymous queue listener and checkin stops 
   h.emit(own,reservation({status:'checkedin',time:'11:55'}));assert.equal(h.listeners.some(l=>l.active&&l.name==='slotCounts'),false);
 });
 
-test('overview reads five slots once and has a 60 second refresh cooldown',async()=>{
+test('overview reads six slots once and has a 60 second refresh cooldown',async()=>{
   const h=setup();await h.start();await h.run('refreshOverview()');await h.run('refreshOverview()');
-  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,5);
-  h.run('overviewAt=Date.now()-61000');await h.run('refreshOverview()');assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,10);
+  assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,6);
+  h.run('overviewAt=Date.now()-61000');await h.run('refreshOverview()');assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,12);
   assert.equal(h.listeners.some(l=>l.name==='slotCounts'),false);
 });
 
