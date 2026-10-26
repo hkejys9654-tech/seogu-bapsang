@@ -5,7 +5,9 @@ const path=require('node:path');
 const vm=require('node:vm');
 const {webcrypto}=require('node:crypto');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
-const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
+const rawSource=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
+// 운영 규칙은 시험용 종일 개방 스위치를 끈 상태(정식 운영)로 검증합니다.
+const source=rawSource.replace('const OPEN_ALL_DAY_FOR_TEST=true;','const OPEN_ALL_DAY_FOR_TEST=false;');
 function app(){
  const c={Date,Intl,crypto:webcrypto,TextEncoder,Uint8Array,console,document:{addEventListener(){},getElementById:()=>null},localStorage:{getItem:()=>null}};
  vm.createContext(c);vm.runInContext(source,c);return{c,run:s=>vm.runInContext(s,c)};
@@ -67,4 +69,11 @@ test('an expired QR cannot bypass the late-arrival notice; manual attendance rem
  const r={date:'2026-10-19',status:'reserved',qrEligible:true,code:'test-qr',callStatus:'called'};
  assert.ok(c.checkinValidationMessage(r,'test-qr').includes('12:10'));
  assert.equal(c.checkinValidationMessage(r), '');
+});
+
+test('pre-pilot test switch opens booking all day and never expires tickets',()=>{
+ const c={Date,Intl,crypto:webcrypto,TextEncoder,Uint8Array,console,document:{addEventListener(){},getElementById:()=>null},localStorage:{getItem:()=>null}};
+ vm.createContext(c);vm.runInContext(rawSource.replace(/const OPEN_ALL_DAY_FOR_TEST=(true|false);/,'const OPEN_ALL_DAY_FOR_TEST=true;'),c);
+ for(const t of ['07:00:00','10:30:00','17:49:00'])assert.equal(c.reservationWindowOpen(at(t)),true,t);
+ assert.equal(c.reservationTimePassed({date:'2026-10-19',time:'11:40'},at('17:00:00')),false);
 });

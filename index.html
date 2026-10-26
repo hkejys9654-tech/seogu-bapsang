@@ -343,6 +343,8 @@ const firebaseConfig = {
 };
 
 const SLOTS=[["11:40",50],["11:45",50],["11:50",50],["11:55",50],["12:00",50],["12:05",50]];
+// 정식 운영 전 시험용: true면 하루 종일 예약 가능, 지난 회차도 만료 처리 안 함. 11월 2일 시범운영 전에 false로 바꿀 것.
+const OPEN_ALL_DAY_FOR_TEST=true;
 const SLOT_MINUTES=5;
 const LATE_ARRIVAL_NOTICE="예약시간이 지났습니다. 12:10 이후 안내자 확인을 받고 식사해주세요.";
 // 화면 잠금용 코드의 검증값입니다. 서버 권한 인증을 대신하지 않습니다.
@@ -910,15 +912,16 @@ function koreaClock(now=new Date()){
   return {date:`${parts.year}-${parts.month}-${parts.day}`,minutes:Number(parts.hour)*60+Number(parts.minute)};
 }
 function todayDate(){return koreaClock().date;}
-function reservationWindowState(now=new Date()){const {minutes}=koreaClock(now);return minutes<600?"before":minutes<660?"open":"closed";}
+function reservationWindowState(now=new Date()){if(OPEN_ALL_DAY_FOR_TEST)return "open";const {minutes}=koreaClock(now);return minutes<600?"before":minutes<660?"open":"closed";}
 function reservationWindowOpen(now=new Date()){return reservationWindowState(now)==="open";}
 function reservationWindowMessage(now=new Date()){return reservationWindowState(now)==="before"?"오전 10:00에 예약이 열립니다":reservationWindowState(now)==="closed"?"오늘 예약이 마감되었습니다 · 11:00 마감":"예약 접수 중 · 11:00 마감";}
 function slotEndTime(time){const [h,m]=time.split(":").map(Number),end=h*60+m+SLOT_MINUTES;return `${String(Math.floor(end/60)).padStart(2,"0")}:${String(end%60).padStart(2,"0")}`;}
 function reservationTimePassed(r,now=new Date()){
+  if(OPEN_ALL_DAY_FOR_TEST)return false;
   const clock=koreaClock(now);if(!r||r.date!==clock.date||slotIndex(r.time)<0)return false;
   const [h,m]=slotEndTime(r.time).split(":").map(Number);return clock.minutes>=h*60+m;
 }
-function operationNotice(){return `<div class="booking-hours" aria-label="예약 가능시간"><span>예약 가능시간</span><strong>10:00~11:00</strong></div>`;}
+function operationNotice(){return OPEN_ALL_DAY_FOR_TEST?`<div class="booking-hours" aria-label="예약 가능시간"><span>시험 기간 · 하루 종일 예약 가능</span><strong>정식 운영 10:00~11:00</strong></div>`:`<div class="booking-hours" aria-label="예약 가능시간"><span>예약 가능시간</span><strong>10:00~11:00</strong></div>`;}
 let operationClockKey="";
 function updateOperationClock(){const c=koreaClock(),key=c.date+":"+c.minutes;if(key===operationClockKey)return;operationClockKey=key;if(st.tab==="home"||st.tab==="my")render();}
 
