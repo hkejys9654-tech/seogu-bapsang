@@ -251,6 +251,17 @@ body{margin:0;background:linear-gradient(#f6f7f9,#eceef2);font-family:-apple-sys
 .sr-radio{flex:0 0 auto;width:20px;height:20px;border-radius:999px;border:2px solid #d1d5db;background:#fff}
 .slot-row.active .sr-radio{border-color:var(--orange);box-shadow:inset 0 0 0 4px #fff;background:var(--orange)}
 .ticket-range{position:relative;z-index:1;font-size:14px;font-weight:900;color:var(--ticket-ink);margin-top:-4px}
+.member-box{margin:10px 0 4px;padding:12px;border-radius:16px;background:#fff;border:1px solid #fed7aa}
+.member-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;font-size:14px}
+.member-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.member-chip{display:inline-flex;align-items:center;gap:5px;padding:6px 6px 6px 11px;border-radius:999px;background:#fff7ed;border:1px solid #fdba74;font-size:13px;font-weight:900}
+.member-chip small{font-weight:700;color:var(--muted);font-size:11px}
+.member-chip button{width:22px;height:22px;border:0;border-radius:999px;background:#fed7aa;color:#9a3412;font-weight:900;cursor:pointer;line-height:1}
+.member-search{display:flex;gap:6px}.member-search .input{flex:1;min-width:0;padding:10px 12px}
+.member-results{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.member-results button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;font:inherit;font-size:14px;color:var(--text);text-align:left;cursor:pointer}
+.member-add{color:var(--orange);font-weight:900;font-size:13px}.member-rest{margin-top:8px}
+.share-box{margin:12px 0 4px;padding:12px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa}
 .call-breakdown{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-top:8px}.call-breakdown span{padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.75);font-size:13px;font-weight:900;color:#14532d}.call-breakdown .cb-group{background:#fff;border:1.5px solid #16a34a}
 .sr-time small{font-size:12px;font-weight:800;color:var(--muted);margin-left:2px;letter-spacing:0}
 .sr-time{flex:0 0 auto;font-size:20px;font-weight:950;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
@@ -393,6 +404,11 @@ let st={
   adminTab:"call",
   adminCallSlot:SLOTS[0][0],
   adminCallSize:10,
+  members:[],
+  memberQuery:"",
+  memberResults:[],
+  memberSearching:false,
+  companion:null,
   scanStream:null,
   scanTimer:null
 };
@@ -405,8 +421,10 @@ const views={
     const head=`<div class="hello"><div><div class="hello-name">${st.user?esc(st.user.name)+"님, ":""}오늘 점심</div><div class="sub">${pretty(bookingDate)}${org?` · ${esc(org.name)}`:""}</div></div></div>${noticeStrip()}${operationNotice()}`;
     if(mine){
       const call=callVisual(mine,true),ahead=queueAhead(mine);
-      return `${head}<div class="card done-card" style="--ticket-accent:${call.theme.accent}"><div class="done-top"><span class="pill ${call.pill}">${call.short}</span><span class="tiny">${reservationLabel(mine)} · ${partySizeOf(mine)}명</span></div><div class="done-time">${esc(mine.time)}</div><div class="done-sub">대기번호 ${String(queueNumberFor(mine)).padStart(3,"0")}번${mine.callStatus==="waiting"||!mine.callStatus?(` · ${queueAheadText(mine)}`):""}</div><div class="notice">${CALL_OPEN_NOTICE}</div><button class="btn primary full" onclick="go('my')">입장표 보기</button></div>`;
+      return `${head}<div class="card done-card" style="--ticket-accent:${call.theme.accent}">${(mine.members||[]).length?`<div class="tiny" style="margin-bottom:6px">동행: ${esc(membersText(mine))}</div>`:""}<div class="done-top"><span class="pill ${call.pill}">${call.short}</span><span class="tiny">${reservationLabel(mine)} · ${partySizeOf(mine)}명</span></div><div class="done-time">${esc(mine.time)}</div><div class="done-sub">대기번호 ${String(queueNumberFor(mine)).padStart(3,"0")}번${mine.callStatus==="waiting"||!mine.callStatus?(` · ${queueAheadText(mine)}`):""}</div><div class="notice">${CALL_OPEN_NOTICE}</div><button class="btn primary full" onclick="go('my')">입장표 보기</button></div>`;
     }
+    const companion=todayCompanion();
+    if(companion){const call=callVisual(companion,true);return `${head}<div class="card done-card" style="--ticket-accent:${call.theme.accent}"><div class="done-top companion-top"><span class="pill ${call.pill}">${call.short}</span><span class="tiny">${esc(companion.name)}님 단체 · ${partySizeOf(companion)}명</span></div><div class="done-time">${esc(companion.time)}</div><div class="done-sub">대기번호 ${String(queueNumberFor(companion)).padStart(3,"0")}번 · 동행으로 포함됨</div><div class="notice">${CALL_OPEN_NOTICE}</div><button class="btn primary full" onclick="go('my')">입장표 보기</button></div>`;}
     const ready=reservationWindowOpen()&&!!assigned&&!blocked&&!reserve.pending&&!reserveFirebase.pending,canBook=ready&&canBookTime(bookingDate,st.slot,org,partySize);
     return `${head}<div class="card book-card">
       <div class="step"><span class="step-no">1</span>몇 명이 가나요?</div>
@@ -414,7 +432,7 @@ const views={
         <button class="${st.bookingType==="individual"?"active":""}" onclick="setBookingType('individual')">혼자</button>
         <button class="${st.bookingType==="group"?"active":""}" onclick="setBookingType('group')">여럿이</button>
       </div>
-      ${st.bookingType==="group"?`<div class="party-inline"><span>대표자 포함 인원</span><div class="party-stepper"><button onclick="changePartySize(-1)" aria-label="인원 줄이기">−</button><div class="party-count">${partySize}명</div><button onclick="changePartySize(1)" aria-label="인원 늘리기">＋</button></div></div>`:""}
+      ${st.bookingType==="group"?`<div class="party-inline"><span>대표자 포함 인원</span><div class="party-stepper"><button onclick="changePartySize(-1)" aria-label="인원 줄이기">−</button><div class="party-count">${partySize}명</div><button onclick="changePartySize(1)" aria-label="인원 늘리기">＋</button></div></div>${memberPicker(partySize)}`:""}
       <div class="row" style="margin-bottom:10px"><div class="step" style="margin:0"><span class="step-no">2</span>언제 들어갈까요?</div><button class="link-btn" style="margin:0;font-size:12px" onclick="refreshOverview()" aria-label="잔여석 새로고침">새로고침</button></div>
       <div class="slot-list">${SLOTS.map(s=>slotRow(s,bookingDate,org,assigned,partySize,blocked)).join("")}</div>
       ${blocked?`<div class="noshow-warning">${blockMessage(st.user.emp,bookingDate)}</div>`:""}
@@ -424,6 +442,8 @@ const views={
     <button class="link-btn" onclick="rules()">이용 안내 보기</button>`;
   },
   my(){
+    const companion=todayCompanion();
+    if(companion&&!myOnDate(todayDate()))return companionTicket(companion,false);
     const r=latest();
     if(!r)return `<div class="card empty-card"><button class="btn soft" onclick="toggleHistory()">지난 내역</button><div class="empty-icon">🎫</div><p>아직 예약이 없어요.</p><button class="btn primary" onclick="go('home')">예약하러 가기</button></div>${st.showHistory?historyView():""}`;
     const orgName=r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"",isToday=r.date===todayDate(),call=callVisual(r,isToday),theme=call.theme,queueNo=queueNumberFor(r),waiting=isToday&&r.status==="reserved"&&(r.callStatus==="waiting"||!r.callStatus);
@@ -444,6 +464,7 @@ const views={
       </div>
       ${isToday&&r.status==="reserved"&&reservationTimePassed(r)?`<div class="requeue-box"><b>예약시간이 지났어요</b><div class="sub">${LATE_ARRIVAL_NOTICE}</div></div>`:isToday&&r.callStatus==="passed"&&Number(r.requeueCount||0)<1?`<div class="requeue-box"><b>호출을 놓쳤나요?</b><div class="sub">예약 회차가 끝나기 전에는 한 번만 같은 회차의 대기열 맨 뒤로 돌아갈 수 있습니다.</div><button class="btn primary full" style="margin-top:10px" onclick="requestRequeue('${r.id}')">다시 대기하기</button></div>`:isToday&&r.callStatus==="passed"?`<div class="requeue-box"><b>재대기 1회를 이미 사용했습니다.</b><div class="sub">안내자에게 직접 문의해주세요.</div></div>`:""}
       <div class="notice">${CALL_OPEN_NOTICE}</div><details class="qr-details"><summary>확인용 QR 보기</summary><div class="qr-help">안내자가 요청할 때만 보여주세요.</div><div id="qrBox"></div>${isLateReservationStatus(r.status)||!r.code?``:`<div class="code">${esc(r.code)}</div>`}</details>
+      ${partySizeOf(r)>1&&isToday&&r.status==="reserved"?`<div class="share-box">${(r.members||[]).length?`<div class="detail"><span>동행</span><b>${esc(membersText(r))}</b></div>`:""}<button class="btn primary full" onclick="shareTicket('${r.id}')">같이 가는 사람에게 보내기</button><div class="tiny" style="margin-top:6px;text-align:center">카톡으로 링크를 보내면 받은 사람도 같은 입장표를 볼 수 있어요.</div></div>`:""}
       <div class="detail"><span>위치</span><b>${esc(r.loc)}</b></div>
       <div class="btnrow"><button class="btn danger full" onclick="cancelRes('${r.id}')">예약 취소</button><button class="btn soft full" onclick="toggleHistory()">지난 내역</button></div>
     </div>${st.showHistory?historyView():""}`
@@ -455,6 +476,121 @@ function slotRow(s,date,org,assigned,partySize,blocked){
   const tag=isQueueClosed(date,time)?["운영 마감","gray"]:!org?["선착순",""]:rem<=0?["마감","gray"]:partySize>rem?["자리 부족","gray"]:[stt[0],stt[1]];
   const meta=firebaseOn&&dataState.slots!=="ready"?"확인 중":!org?`정원 ${cap}명`:`${rem}명 남음`;
   return `<button class="slot-row ${active?"active":""} ${available?"":"disabled"}" onclick="selectSlot('${time}')" ${available?"":"aria-disabled=\"true\""}><span class="sr-radio"></span><span class="sr-time">${time}<small>~${slotEndTime(time)}</small></span><span class="sr-mid"><span class="sr-bar"><i style="width:${Math.min(100,Math.round(used/cap*100))}%"></i></span><span class="sr-meta">${meta}</span></span><span class="sr-tag ${tag[1]}">${tag[0]}</span></button>`;
+}
+
+// 단체 동행: (1) 등록한 직원을 이름으로 검색해 동행으로 넣거나 (2) 입장표 링크를 공유합니다.
+// 동행으로 선택된 직원은 companions/{날짜_행정번호} 문서로 대표 예약을 찾아 같은 입장표를 봅니다.
+const DEMO_STAFF=[{emp:"9001",name:"김팀장",dept:"기획실"},{emp:"9002",name:"이과장",dept:"기획실"},{emp:"9003",name:"박주무관",dept:"홍보실"},{emp:"9004",name:"최주무관",dept:"감사담당관"}];
+let unsubCompanion=null,unsubCompanionRes=null,companionResId="",shareMode=null;
+function staffKey(name){return String(name||"").replace(/\s+/g,"")}
+function newShareKey(){const a=new Uint8Array(9);if(globalThis.crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<a.length;i++)a[i]=Math.floor(Math.random()*256);return Array.from(a,b=>(b%36).toString(36)).join("")+Date.now().toString(36).slice(-3)}
+async function syncStaffProfile(){
+  if(!firebaseOn||!db||!st.user)return;
+  const u=st.user,org=organizationByKey(u.orgKey)||{},sig=[u.emp,u.name,u.dept,u.orgKey].join("|");
+  try{if(localStorage.getItem("sg_staff_synced")===sig)return}catch(e){}
+  try{await db.collection("staff").doc(u.emp).set({emp:u.emp,name:u.name,nameKey:staffKey(u.name),orgKey:u.orgKey||"",orgName:org.name||"",dept:u.dept,updatedAt:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});try{localStorage.setItem("sg_staff_synced",sig)}catch(e){}}catch(e){console.error(e)}
+}
+async function searchMembers(){
+  const input=document.getElementById("memberQuery"),raw=input?input.value:st.memberQuery,q=staffKey(raw);st.memberQuery=raw;
+  if(!q)return toast("함께 갈 직원 이름을 입력해주세요.");
+  st.memberSearching=true;render();
+  try{
+    let rows=[];
+    if(firebaseOn&&db){const snap=await db.collection("staff").where("nameKey",">=",q).where("nameKey","<=",q+"").limit(8).get();rows=snap.docs.map(d=>({...d.data(),emp:d.id}));}
+    else rows=DEMO_STAFF.filter(s=>staffKey(s.name).startsWith(q));
+    st.memberResults=rows.filter(s=>(!st.user||s.emp!==st.user.emp)&&!st.members.some(m=>m.emp===s.emp));
+    if(!st.memberResults.length)toast("등록한 직원 중에 찾지 못했어요. 예약 후 링크로 보내주세요.");
+  }catch(e){console.error(e);toast("직원 검색 중 오류가 발생했어요.");}
+  finally{st.memberSearching=false;render();}
+}
+function addMember(emp){
+  if(reserve.pending||reserveFirebase.pending)return;
+  const s=st.memberResults.find(v=>v.emp===emp);if(!s||st.members.some(m=>m.emp===emp))return;
+  if(st.members.length>=9)return toast("동행은 9명까지 고를 수 있어요.");
+  st.members.push({emp:s.emp,name:s.name,dept:s.dept||""});
+  st.partySize=Math.min(10,Math.max(Number(st.partySize)||2,st.members.length+1));
+  st.memberResults=[];st.memberQuery="";render();
+}
+function removeMember(emp){if(reserve.pending||reserveFirebase.pending)return;st.members=st.members.filter(m=>m.emp!==emp);render();}
+function memberPicker(partySize){
+  const rest=partySize-1-st.members.length;
+  return `<div class="member-box">
+    <div class="member-head"><b>함께 갈 직원</b><span class="tiny">앱에 등록한 직원만 검색돼요</span></div>
+    ${st.members.length?`<div class="member-chips">${st.members.map(m=>`<span class="member-chip">${esc(m.name)}<small>${esc(m.dept)}</small><button onclick="removeMember('${esc(m.emp)}')" aria-label="${esc(m.name)} 빼기">×</button></span>`).join("")}</div>`:""}
+    <div class="member-search"><input id="memberQuery" class="input" placeholder="이름으로 찾기" value="${esc(st.memberQuery)}" onkeydown="if(event.key==='Enter')searchMembers()" autocomplete="off"><button class="btn light small" onclick="searchMembers()" ${st.memberSearching?"disabled":""}>${st.memberSearching?"찾는 중":"찾기"}</button></div>
+    ${st.memberResults.length?`<div class="member-results">${st.memberResults.map(s=>`<button onclick="addMember('${esc(s.emp)}')"><span><b>${esc(s.name)}</b> · ${esc(s.dept||"")}</span><span class="member-add">추가</span></button>`).join("")}</div>`:""}
+    <div class="tiny member-rest">${rest>0?`나머지 ${rest}명은 예약 후 입장표에서 링크로 보내면 돼요.`:"선택한 직원도 자기 앱에서 같은 입장표를 보게 돼요."}</div>
+  </div>`;
+}
+function membersText(r){const m=(r&&r.members)||[];return m.length?m.map(v=>v.name).join(", "):""}
+function watchSharedReservation(id,onData,epoch=null){
+  let prev=null;
+  return db.collection("reservations").doc(id).onSnapshot(snap=>{
+    if(epoch!==null&&epoch!==dataEpoch)return;
+    const r=snap.exists?{id:snap.id,...snap.data()}:null,live=r&&r.status!=="cancelled"?r:null;
+    if(live&&prev&&live.callStatus==="called"&&(prev.callStatus!=="called"||prev.callBatchId!==live.callBatchId))notifyCall(live);
+    prev=live;onData(live);
+  },err=>console.error(err));
+}
+function stopCompanion(){if(unsubCompanion)unsubCompanion();if(unsubCompanionRes)unsubCompanionRes();unsubCompanion=unsubCompanionRes=null;companionResId="";st.companion=null;}
+function listenCompanion(){
+  stopCompanion();
+  if(!firebaseOn||!db||isAdminData()||!st.user)return;
+  const epoch=dataEpoch,date=st.date,emp=st.user.emp;
+  unsubCompanion=db.collection("companions").doc(docId(date,emp)).onSnapshot(snap=>{
+    if(epoch!==dataEpoch)return;
+    const id=snap.exists&&snap.data().date===date?snap.data().reservationId:"";
+    if(id===companionResId)return;
+    if(unsubCompanionRes)unsubCompanionRes();unsubCompanionRes=null;companionResId=id;st.companion=null;
+    if(!id){render();return;}
+    unsubCompanionRes=watchSharedReservation(id,r=>{st.companion=r;render();},epoch);
+  },err=>console.error(err));
+}
+function todayCompanion(){return st.companion&&st.companion.date===todayDate()?st.companion:null}
+function companionTicket(r,viaLink){
+  const orgName=r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"",isToday=r.date===todayDate(),call=callVisual(r,isToday),theme=call.theme;
+  return `<div class="card ticket-card">
+    <div class="row"><div><div class="title" style="margin-bottom:4px">동행 입장표</div><div class="sub">${esc(r.name)}님 단체 예약에 함께 들어가요. 초록색이 되면 이 화면을 보여주세요.</div></div><span class="pill ${call.pill}">${call.short}</span></div>
+    <div class="entry-ticket" style="--ticket-accent:${theme.accent};--ticket-soft:${theme.soft};--ticket-ink:${theme.ink}">
+      <div class="ticket-live"><span class="ticket-live-dot"></span><span>${isToday?"단체 호출 상태":"예약 내역"}</span><b id="ticketClock">${liveClockText()}</b></div>
+      <div class="ticket-call companion-call">${call.message}</div>
+      <div class="ticket-queue">${esc(r.time)} 대기번호 · ${String(queueNumberFor(r)).padStart(3,"0")}번</div>
+      <div class="ticket-label">입장 예약시간</div>
+      <div class="ticket-time">${esc(r.time)}</div><div class="ticket-range">${esc(r.time)}~${slotEndTime(r.time)}</div>
+      <div class="ticket-status">${call.status}</div>
+      ${call.token?`<div class="ticket-token">확인표시 · ${esc(call.token)}</div>`:""}
+      <div class="ticket-owner">대표 ${esc(r.name)} · ${esc(orgName)} · ${esc(r.dept)}</div>
+      <div style="position:relative;z-index:1;margin-top:8px"><span class="party-badge">단체 예약 · 총 ${partySizeOf(r)}명 · 동행</span></div>
+      <div class="ticket-date">${pretty(r.date)} · ${esc(r.place||"")}</div>
+    </div>
+    <div class="notice">${CALL_OPEN_NOTICE}</div>
+    ${viaLink?`<button class="btn soft full" onclick="leaveShare()">서구밥상 앱 열기</button>`:""}
+  </div>`;
+}
+async function openShared(key){
+  shareMode={key,res:null,state:"loading",unsub:null};
+  if(!firebaseOn||!db){shareMode.state="error";render();return;}
+  try{
+    const s=await db.collection("shares").doc(key).get();
+    if(!shareMode||shareMode.key!==key)return;
+    if(!s.exists){shareMode.state="missing";render();return;}
+    shareMode.unsub=watchSharedReservation(s.data().reservationId,r=>{if(!shareMode||shareMode.key!==key)return;shareMode.res=r&&r.shareKey===key?r:null;shareMode.state=shareMode.res?"ready":"missing";render();});
+  }catch(e){console.error(e);if(shareMode&&shareMode.key===key){shareMode.state="error";render();}}
+}
+function shareView(){
+  if(shareMode.state==="ready")return companionTicket(shareMode.res,true);
+  const msg=shareMode.state==="loading"?"입장표를 불러오는 중이에요.":shareMode.state==="missing"?"취소됐거나 없는 입장표예요. 보낸 사람에게 확인해주세요.":"입장표를 불러오지 못했어요. 연결을 확인하고 다시 열어주세요.";
+  return `<div class="card empty-card"><div class="empty-icon">🎫</div><p>${msg}</p><button class="btn soft" onclick="leaveShare()">서구밥상 앱 열기</button></div>`;
+}
+function leaveShare(){if(shareMode&&shareMode.unsub)shareMode.unsub();shareMode=null;try{history.replaceState(null,"",location.pathname)}catch(e){}updateLoginState();render();}
+async function shareTicket(id){
+  const r=st.reservations.find(v=>v.id===id);if(!r)return;
+  if(!firebaseOn)return toast("체험에서는 공유 링크를 보내지 않습니다.");
+  if(!r.shareKey)return toast("이 예약에는 공유 링크가 없어요. 취소 후 다시 예약하면 생겨요.");
+  const url=location.origin+location.pathname+"?s="+encodeURIComponent(r.shareKey),text=`[서구밥상] ${r.name}님 단체 ${partySizeOf(r)}명 · ${r.time}~${slotEndTime(r.time)} 입장표`;
+  if(navigator.share){try{await navigator.share({title:"서구밥상 입장표",text,url});return}catch(e){if(e&&e.name==="AbortError")return}}
+  try{await navigator.clipboard.writeText(url);toast("링크를 복사했어요. 카톡에 붙여넣어 보내주세요.")}
+  catch(e){openModal("입장표 링크",`<div class="sub" style="margin-bottom:8px">길게 눌러 복사한 뒤 카톡으로 보내주세요.</div><input class="input" readonly value="${esc(url)}" onclick="this.select()">`)}
 }
 
 function queueAhead(r){
@@ -476,6 +612,9 @@ async function init(){
   migrateUserOrganization();populateOrganizationSelect("org",st.user&&st.user.orgKey||"");populateDeptSelect("org","dept",st.user&&st.user.dept||"");
   try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();firebaseOn=true;st.reservations=[];st.penalties={};st.queueControls={};refreshDataScope(true);listenNotices();}
   catch(e){console.error("Firebase init failed:",e);firebaseInitFailed=true;st.reservations=[];st.penalties={};st.queueControls={};}
+  const sharedKey=new URLSearchParams(location.search).get("s");
+  if(sharedKey&&/^[a-z0-9]{6,40}$/.test(sharedKey))openShared(sharedKey);
+  if(st.user)syncStaffProfile();
   render();updateLoginState();
   if(!ticketClockTimer)ticketClockTimer=setInterval(()=>{updateTicketClock();updateOperationClock();if(st.date!==todayDate()&&!isAdminData())refreshDataScope();},1000);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){refreshDataScope();refreshOverview();}});
@@ -503,7 +642,7 @@ function refreshDataScope(force=false){
   unsubReservations=unsubPenalties=unsubQueueControls=unsubOwnQueue=null;ownQueueKey="";
   st.reservations=[];st.penalties={};st.queueControls={};slotSummaries={};historyRows=[];historyError="";historyLoading=false;st.showHistory=false;reservationSnapshotReady=false;confirmedReservations=new Map();
   dataState={reservation:"loading",slots:"loading",controls:"loading",penalty:"loading",queue:"idle",notices:dataState.notices};
-  listenReservations();listenPenalties();listenQueueControls();refreshOverview(true);
+  listenReservations();listenPenalties();listenQueueControls();listenCompanion();refreshOverview(true);
 }
 async function refreshOverview(force=false){
   if(!firebaseOn||!db)return;
@@ -717,7 +856,7 @@ function notifyCall(r){
   showCallNotification("🍚 지금 입장하세요",`${r.time} · 대기번호 ${String(queueNumberFor(r)).padStart(3,"0")}번 · ${r.callToken||"초록 입장표를 확인하세요"}`);
 }
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toastT);window.__toastT=setTimeout(()=>el.classList.remove("show"),1800)}
-function updateLoginState(){document.getElementById("login").classList.toggle("show",!st.user)}
+function updateLoginState(){document.getElementById("login").classList.toggle("show",!st.user&&!shareMode)}
 function organizationByKey(key){return ORG_GROUPS.find(v=>v.key===key)||null}
 function organizationByDepartment(dept){return ORG_GROUPS.find(v=>v.departments.includes(dept))||null}
 function userOrganization(){return st.user?(organizationByKey(st.user.orgKey)||organizationByDepartment(st.user.dept)):null}
@@ -736,14 +875,14 @@ function isEligibleTime(time,date=todayDate(),org=userOrganization()){return !!o
 function isOverflowChoice(){return false;}
 
 function overflowQuotaReleased(){const now=new Date(),release=new Date();release.setHours(OVERFLOW_RELEASE_HOUR,OVERFLOW_RELEASE_MINUTE,0,0);return now>=release}
-function saveLogin(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("name").value.trim(),orgKey=document.getElementById("org").value,dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim(),org=organizationByKey(orgKey);if(!name)return toast("이름을 입력해주세요.");if(!org)return toast("국·기관을 선택해주세요.");if(!dept||!org.departments.includes(dept))return toast("소속 부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();updateLoginState();render();toast("직원 정보가 저장되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
-function go(tab){if(tab==="reserve")tab="home";st.tab=tab;if(tab!=="more")stopScanner();refreshDataScope();if(tab==="home")refreshOverview();render();}
+function saveLogin(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("name").value.trim(),orgKey=document.getElementById("org").value,dept=document.getElementById("dept").value,emp=document.getElementById("emp").value.trim(),org=organizationByKey(orgKey);if(!name)return toast("이름을 입력해주세요.");if(!org)return toast("국·기관을 선택해주세요.");if(!dept||!org.departments.includes(dept))return toast("소속 부서를 선택해주세요.");if(!/^\d{4}$/.test(emp))return toast("행정번호 끝 4자리를 입력해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();updateLoginState();render();toast("직원 정보가 저장되었습니다.");syncStaffProfile();if(notificationPermission()==="granted")setupPushMessaging(false)}
+function go(tab){if(shareMode)leaveShare();if(tab==="reserve")tab="home";st.tab=tab;if(tab!=="more")stopScanner();refreshDataScope();if(tab==="home")refreshOverview();render();}
 function shift(days){const d=new Date(st.date+"T00:00:00");d.setDate(d.getDate()+days);st.date=fmt(d);refreshDataScope();render();}
 function quick(n){const d=new Date();d.setDate(d.getDate()+n);st.date=fmt(d);refreshDataScope();render();}
 function activeQuick(n){const d=new Date();d.setDate(d.getDate()+n);return st.date===fmt(d)?"active":""}
 function byDate(date){return st.reservations.filter(r=>r.date===date&&r.status!=="cancelled")}
 function partySizeOf(r){const n=Math.trunc(Number(r&&r.partySize)||1);return Math.max(1,Math.min(10,n))}
-function selectedPartySize(){return st.bookingType==="group"?Math.max(2,Math.min(10,Math.trunc(Number(st.partySize)||2))):1}
+function selectedPartySize(){return st.bookingType==="group"?Math.max(2,((st.members||[]).length)+1,Math.min(10,Math.trunc(Number(st.partySize)||2))):1}
 function reservationLabel(r){return (partySizeOf(r)>1||(r&&r.reservationType==="group"))?"단체 예약":"개인 예약"}
 function totalPeople(rows){return (rows||[]).reduce((sum,r)=>sum+partySizeOf(r),0)}
 function takeWaitingByPeople(rows,limit){const picked=[];let people=0;for(const r of rows){const size=partySizeOf(r);if(people+size>limit)break;picked.push(r);people+=size;if(people>=limit)break}return picked}
@@ -791,7 +930,7 @@ function blockMessage(emp,date=todayDate()){
   return `전일 노쇼 이력으로 ${pretty(p.blockDate)} 예약이 제한됩니다.`;
 }
 
-function setBookingType(type){if(reserve.pending||reserveFirebase.pending)return;st.bookingType=type==="group"?"group":"individual";if(st.bookingType==="group")st.partySize=Math.max(2,Math.min(10,Number(st.partySize)||2));render()}
+function setBookingType(type){if(reserve.pending||reserveFirebase.pending)return;st.bookingType=type==="group"?"group":"individual";if(st.bookingType!=="group"){st.members=[];st.memberResults=[];}if(st.bookingType==="group")st.partySize=Math.max(2,Math.min(10,Number(st.partySize)||2));render()}
 function changePartySize(delta){if(reserve.pending||reserveFirebase.pending)return;st.partySize=Math.max(2,Math.min(10,selectedPartySize()+Number(delta||0)));render()}
 function selectSlot(time){if(reserve.pending||reserveFirebase.pending)return;const org=userOrganization(),date=todayDate(),assigned=org?assignedSlot(org.key,date):"",size=selectedPartySize();if(!assigned)return toast("소속 정보를 먼저 등록해주세요.");if(!isEligibleTime(time,date,org))return toast(`${org.name}은 ${assigned}부터 예약할 수 있습니다.`);if(!canBookTime(date,time,org,size))return toast(remain(date,time)<size?`${size}명이 함께 예약할 잔여석이 부족합니다.`:isOverflowChoice(time,date,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.");st.slot=time;render()}
 let uiNoticeDraft=null,uiNoticeSaving=false,uiScannerGeneration=0,uiScannerPending=false,uiStorageWarningShown=false;
@@ -804,7 +943,7 @@ function render(){
   if(noticeTitle)uiNoticeDraft={type:document.getElementById("noticeType").value,title:noticeTitle.value,body:document.getElementById("noticeBody").value};
   const keepScanner=st.tab==="more"&&st.adminUnlocked&&st.adminTab==="camera",scanner=document.getElementById("scannerArea");
   if(!keepScanner&&(uiScannerPending||st.scanStream))stopScanner();
-  content.innerHTML=connectionBanner()+views[st.tab]();
+  content.innerHTML=shareMode?shareView():connectionBanner()+views[st.tab]();
   const nextTitle=document.getElementById("noticeTitle");
   if(nextTitle&&noticeForm)nextTitle.closest(".mini-card").replaceWith(noticeForm);
   if(document.getElementById("noticeTitle")&&uiNoticeDraft){
@@ -906,7 +1045,9 @@ async function reserve(){
   if(isQueueClosed(bookingDate,time))return toast("운영이 마감된 시간대입니다. 다른 시간을 선택해주세요.");
   if(!canBookTime(bookingDate,time,org,partySize))return toast(remain(bookingDate,time)<partySize?`${partySize}명이 함께 예약할 잔여석이 부족합니다.`:isOverflowChoice(time,bookingDate,org)?"선택한 시간의 공유 좌석이 마감되었습니다.":"선택한 시간이 마감되었습니다.");
   if(isBlocked(user.emp,bookingDate))return toast(blockMessage(user.emp,bookingDate));
-  const booking={bookingDate,user,time,org:{...org},assigned,partySize,overflow:isOverflowChoice(time,bookingDate,org),late:false};
+  const companion=todayCompanion();if(companion)return toast(`이미 ${companion.name}님 단체 예약에 동행으로 포함돼 있어요.`);
+  const members=partySize>1?(st.members||[]).map(m=>({emp:m.emp,name:m.name,dept:m.dept||""})).slice(0,partySize-1):[];
+  const booking={bookingDate,user,time,org:{...org},assigned,partySize,members,overflow:isOverflowChoice(time,bookingDate,org),late:false};
   st.date=bookingDate;reserve.pending=true;render();
   try{
     if(firebaseOn)return await reserveFirebase(booking);
@@ -914,10 +1055,10 @@ async function reserve(){
     if(remain(bookingDate,time)<partySize)return toast(`${partySize}명이 함께 예약할 잔여석이 부족합니다.`);
     const {late,overflow}=booking;
     const queueNumber=Math.max(0,...st.reservations.filter(r=>r.date===bookingDate&&r.time===time).map(r=>Number(r.queueNumber)||0))+1;
-    const item={id:docId(bookingDate,user.emp),name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),createdAt:Date.now()};
+    const item={id:docId(bookingDate,user.emp),name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),members:booking.members,shareKey:"",createdAt:Date.now()};
     // Rebooking a canceled local reservation replaces its stable document ID.
     st.reservations=st.reservations.filter(r=>r.id!==item.id);st.reservations.push(item);
-    saveLocal();go("my");toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.");
+    st.members=[];st.memberResults=[];saveLocal();go("my");toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.");
   }finally{reserve.pending=false;render();}
 }
 async function reserveFirebase(booking=null){
@@ -928,7 +1069,7 @@ async function reserveFirebase(booking=null){
     const bookingDate=todayDate(),user={...st.user},time=st.slot,org=userOrganization();
     booking={bookingDate,user,time,org:org&&{...org},assigned:org?assignedSlot(org.key,bookingDate):"",partySize:selectedPartySize(),overflow:org?isOverflowChoice(time,bookingDate,org):false,late:false};
   }
-  const {bookingDate,user,time,org,assigned,partySize,overflow,late}=booking;
+  const {bookingDate,user,time,org,assigned,partySize,overflow,late}=booking,members=booking.members||[],shareKey=partySize>1?newShareKey():"";
   const slot=SLOTS.find(s=>s[0]===time);
   if(!org||!slot||!isEligibleTime(time,bookingDate,org))return toast("운영 중인 회차를 선택해주세요.");
   const cap=slot[1],rRef=db.collection("reservations").doc(docId(bookingDate,user.emp)),sRef=db.collection("slotCounts").doc(slotId(bookingDate,time));
@@ -954,6 +1095,14 @@ async function reserveFirebase(booking=null){
       if(rSnap.exists&&rSnap.data().status!=="cancelled"){existingReservation=rSnap;throw new Error("EXISTS");}
       const pSnap=await tx.get(db.collection("penalties").doc(user.emp));
       if(pSnap.exists&&pSnap.data().blockDate===bookingDate)throw new Error("BLOCKED");
+      const ownCompanion=await tx.get(db.collection("companions").doc(docId(bookingDate,user.emp)));
+      if(ownCompanion.exists)throw new Error("IS_COMPANION");
+      for(const m of members){
+        const mRes=await tx.get(db.collection("reservations").doc(docId(bookingDate,m.emp)));
+        if(mRes.exists&&mRes.data().status!=="cancelled")throw new Error("MEMBER_BOOKED|"+m.name);
+        const mComp=await tx.get(db.collection("companions").doc(docId(bookingDate,m.emp)));
+        if(mComp.exists)throw new Error("MEMBER_TAKEN|"+m.name);
+      }
       const controlSnap=await tx.get(db.collection("queueControls").doc(queueControlKey(bookingDate,time)));
       if(controlSnap.exists&&controlSnap.data().closed===true)throw new Error("CLOSED");
       const sSnap=!late?await tx.get(sRef):null,sData=sSnap&&sSnap.exists?sSnap.data():{};
@@ -964,10 +1113,13 @@ async function reserveFirebase(booking=null){
       if(!late&&count+partySize>cap)throw new Error("FULL");
       if(!late&&overflow&&!overflowQuotaReleased()&&overflowCountNow+partySize>EARLY_OVERFLOW_QUOTA)throw new Error("OVERFLOW_FULL");
       const now=firebase.firestore.FieldValue.serverTimestamp();
-      const item={name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),createdAt:now,updatedAt:now};
+      const item={name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),members,shareKey,createdAt:now,updatedAt:now};
       if(!late)tx.set(sRef,{...queueLedgerPatch(sData,null,item),cap,count:count+partySize,overflowCount:overflowCountNow+(overflow?partySize:0),nextQueueNumber:queueNumber,updatedAt:now},{merge:true});
       tx.set(rRef,item);
+      for(const m of members)tx.set(db.collection("companions").doc(docId(bookingDate,m.emp)),{reservationId:docId(bookingDate,user.emp),ownerEmp:user.emp,ownerName:user.name,date:bookingDate,time,createdAt:now});
+      if(shareKey)tx.set(db.collection("shares").doc(shareKey),{reservationId:docId(bookingDate,user.emp),date:bookingDate,createdAt:now});
     });
+    st.members=[];st.memberResults=[];
     if(!inBookingScope())return;
     go("my");
     toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.");
@@ -975,6 +1127,9 @@ async function reserveFirebase(booking=null){
     console.error(e);const msg=String(e.message||"");
     if(!inBookingScope())return;
     if(msg.includes("WINDOW_ENDED"))toast(reservationWindowMessage());
+    else if(msg.includes("IS_COMPANION"))toast("이미 다른 직원의 단체 예약에 동행으로 포함돼 있어요. 입장표를 확인해주세요.");
+    else if(msg.includes("MEMBER_BOOKED|"))toast(`${msg.split("|")[1]}님은 이미 오늘 예약이 있어요. 동행에서 빼고 다시 예약해주세요.`);
+    else if(msg.includes("MEMBER_TAKEN|"))toast(`${msg.split("|")[1]}님은 이미 다른 단체에 포함돼 있어요. 동행에서 빼고 다시 예약해주세요.`);
     else if(msg.includes("EXISTS")){
       if(!existingReservation||!showConfirmedReservation(existingReservation,"이미 오늘 예약이 있습니다."))toast("오늘 예약을 입장표에서 다시 확인해주세요.");
     }
@@ -1036,6 +1191,8 @@ async function cancelFirebase(idv){
       const sSnap=sRef?await tx.get(sRef):null,sData=sSnap&&sSnap.exists?sSnap.data():{};
       const now=firebase.firestore.FieldValue.serverTimestamp(),after={...r,status:"cancelled"};
       tx.update(rRef,{status:"cancelled",updatedAt:now});
+      for(const m of (r.members||[]))tx.delete(db.collection("companions").doc(docId(r.date,m.emp)));
+      if(r.shareKey)tx.delete(db.collection("shares").doc(r.shareKey));
       if(sRef)tx.set(sRef,{...queueLedgerPatch(sData,r,after),count:Math.max(0,(Number(sData.count)||0)-partySizeOf(r)),overflowCount:Math.max(0,(Number(sData.overflowCount)||0)-(r.isOverflow?partySizeOf(r):0)),updatedAt:now},{merge:true});
     });
     st.reservations=st.reservations.map(r=>r.id===idv?{...r,status:"cancelled"}:r);
@@ -1209,7 +1366,7 @@ function callPanel(){
   return `<div><div class="row"><div><div class="title" style="font-size:16px">입장 인원 호출</div><div class="sub">직원 이름 대신 초록색 화면과 인원수만 확인합니다.</div></div><span class="badge ${closed?"cancel":"live"}">${closed?"마감":"운영 중"}</span></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="call-slot-grid">${SLOTS.map(s=>`<button class="${s[0]===time?"active":""} ${isQueueClosed(date,s[0])?"slot-closed":""}" onclick="setCallSlot('${s[0]}')">${s[0]}</button>`).join("")}</div><div class="call-stats"><div class="call-stat"><b>${waitingPeople}</b><span>호출 대기${retryWaiting?` · 재대기 ${retryWaiting}`:""}</span></div><div class="call-stat green"><b>${calledPeople}</b><span>지금 입장</span></div><div class="call-stat"><b>${donePeople}</b><span>호출 종료</span></div></div>${called.length?`<div class="call-live-board"><div class="tiny" style="color:inherit">개인·단체 입장표와 함께 확인</div><div class="call-number">지금 ${calledPeople}명 입장</div>${callBreakdown(called)}<div class="call-token-big">확인표시 · ${esc(token)}</div></div>`:`<div class="call-live-board wait"><div class="call-number">${closed?"시간대 운영 마감":"현재 호출 없음"}</div><div class="tiny" style="color:inherit;margin-top:5px">${closed?"예약시간을 넘긴 직원은 12:10 이후 이용합니다.":"대기 인원을 확인하고 다음 인원을 호출하세요."}</div></div>`}<div class="call-buttons"><div class="call-size"><label for="callSize">호출 인원</label><select id="callSize" class="select" onchange="setCallSize(this.value)" ${callNext.pending?"disabled":""}>${Array.from({length:cap},(_,i)=>`<option value="${i+1}" ${st.adminCallSize===i+1?"selected":""}>${i+1}명</option>`).join("")}</select></div><button class="btn green" onclick="callNext(st.adminCallSize)" ${waiting.length&&date===todayDate()&&!closed&&!tooSmall&&!callNext.pending?"":"disabled"}>${callNext.pending?"호출 중…":"최대 "+st.adminCallSize+"명 호출"}</button></div>${tooSmall?`<div class="call-size-hint">맨 앞 단체는 ${firstParty}명입니다. ${firstParty}명 이상을 선택해주세요.</div>`:""}<div class="btnrow">${called.length?`<button class="btn light full" onclick="closeCurrentCall()">현재 호출 종료</button>`:""}<button class="btn ${closed?"green":"danger"} full" onclick="toggleQueueClosed()">${closed?"시간대 다시 열기":"이 시간대 마감"}</button></div>${date!==todayDate()?`<div class="notice">입장 호출은 오늘 날짜에서만 실행할 수 있습니다.</div>`:""}<div class="call-help"><b>현장 확인 방법</b><br>버튼을 누르면 대기 순서대로 최대 인원 안에서 호출합니다. 단체는 쪼개지 않고 한 번에 호출하며, 담당자는 초록색 화면과 실제 들어오는 사람 수만 확인합니다. 이상할 때만 QR을 스캔합니다.</div></div>`;
 }
 function cameraPanel(){return `<div><div class="title" style="font-size:16px">QR 체크인 카메라</div><div class="sub">카메라를 켜면 QR 코드를 인식하여 예약자를 자동으로 입장 처리합니다.</div><div class="btnrow"><button class="btn primary full" onclick="startScanner()">카메라 켜기</button></div><div id="scannerArea"></div></div>`}
-function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)||queueNumberFor(a)-queueNumberFor(b)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약·대기번호·실제 인원·호출 상태입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}<small style="display:block;color:#6b7280">전 직원 선착순</small></span><b>${c[s[0]]||0} / ${s[1]}명</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"")} · ${esc(r.dept)}</div><div class="sub">${reservationLabel(r)} · ${partySizeOf(r)}명 · ${esc(r.time)} · 대기 ${String(queueNumberFor(r)).padStart(3,"0")}번 · 행정번호 ${esc(r.emp)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"||r.callStatus==="passed"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":r.callStatus==="called"?"지금입장":r.callStatus==="passed"?"호출지남":isLateReservationStatus(r.status)?"마감후예약":"대기"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">${partySizeOf(r)}명 체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
+function reservationPanel(){const rows=byDate(st.date).sort((a,b)=>a.time.localeCompare(b.time)||queueNumberFor(a)-queueNumberFor(b)),c=counts(st.date);return `<div><div class="row"><div><div class="title" style="font-size:16px">예약자 목록</div><div class="sub">선택한 날짜의 예약·대기번호·실제 인원·호출 상태입니다.</div></div><button class="btn light small" onclick="exportCsv()">CSV</button></div><div class="datebar"><button class="btn light small" onclick="shift(-1)">이전</button><div class="center">${pretty(st.date)}</div><button class="btn light small" onclick="shift(1)">다음</button></div><div class="mini-card" style="margin-bottom:12px">${SLOTS.map(s=>`<div class="detail"><span>${s[0]}<small style="display:block;color:#6b7280">전 직원 선착순</small></span><b>${c[s[0]]||0} / ${s[1]}명</b></div>`).join("")}</div>${rows.length?rows.map(r=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><div style="font-weight:900">${esc(r.name)} · ${esc(r.orgName||(organizationByKey(r.orgKey)||organizationByDepartment(r.dept)||{}).name||"")} · ${esc(r.dept)}</div><div class="sub">${reservationLabel(r)} · ${partySizeOf(r)}명${(r.members||[]).length?` (동행 ${esc(membersText(r))})`:""} · ${esc(r.time)} · 대기 ${String(queueNumberFor(r)).padStart(3,"0")}번 · 행정번호 ${esc(r.emp)}</div></div><span class="pill ${r.status==="checkedin"?"checkin":r.status==="noshow"||r.callStatus==="passed"?"cancel":"reserve"}">${r.status==="checkedin"?"입장완료":r.status==="noshow"?"노쇼":r.callStatus==="called"?"지금입장":r.callStatus==="passed"?"호출지남":isLateReservationStatus(r.status)?"마감후예약":"대기"}</span></div><div class="btnrow"><button class="btn green full" onclick="checkin('${r.id}')">${partySizeOf(r)}명 체크인</button><button class="btn danger full" onclick="cancelRes('${r.id}')">취소</button></div></div>`).join(""):`<div class="mini-card">예약자가 없습니다.</div>`}</div>`}
 function noticePanel(){const list=[...st.notices].sort((a,b)=>(b.createdAtMs||0)-(a.createdAtMs||0));return `<div><div class="title" style="font-size:16px">공지사항 · 버전업 관리</div><div class="sub">메인 대시보드에 공지와 업데이트 내용을 노출합니다.</div><div class="line"></div><div class="mini-card" style="margin-bottom:12px"><div class="form"><select id="noticeType" class="select"><option>공지</option><option>업데이트</option><option>점검</option><option>안내</option></select><input id="noticeTitle" class="input" placeholder="제목"><textarea id="noticeBody" placeholder="공지 내용 또는 업데이트 내용을 입력해주세요."></textarea><button class="btn primary full" onclick="addNotice()">공지 등록</button></div></div>${list.length?list.map(n=>`<div class="reservation-item"><div class="row" style="align-items:flex-start"><div><span class="notice-tag">${esc(n.type)}</span><div style="font-weight:900;margin-bottom:4px">${esc(n.title)}</div><div class="sub">${esc(n.body)}</div></div><button class="btn danger small" onclick="removeNotice('${n.id}')">삭제</button></div></div>`).join(""):`<div class="mini-card">등록된 공지사항이 없습니다.</div>`}</div>`}
 
 
@@ -1219,7 +1376,7 @@ function closeModal(){document.getElementById("modal").classList.remove("show")}
 function rules(){openModal("이용 안내",`<ul class="menu-list"><li><b>예약 가능시간: 오전 10:00~11:00 (한국 시간)</b><br>10시부터 예약할 수 있으며, 11시가 되면 접수가 마감됩니다.</li><li><b>현업근로자</b><br>이용시간: 11:30~11:40</li><li>직원 입장: ${SLOTS.map(v=>`${v[0]}–${slotEndTime(v[0])}`).join(" · ")}<br>${SLOT_MINUTES}분 간격 ${SLOTS.length}회차 · 각 50명, 총 ${SLOTS.reduce((sum,slot)=>sum+slot[1],0)}명입니다.</li><li>국·기관별 배정 없이 모든 직원이 선착순 예약합니다.</li><li>개인은 1명, 단체는 대표자 포함 2~10명까지 예약합니다. 단체 전원이 함께 입장합니다.</li><li>예약한 회차에 입장표가 초록색으로 바뀌면 입장합니다.</li><li><b>예약시간을 넘기면 12:10 이후 안내자 확인을 받고 식사해주세요.</b> 다른 예약 회차로 자동 이동하지 않습니다.</li><li>호출을 놓쳐도 예약 회차가 끝나기 전에는 같은 회차에서 1회 다시 대기할 수 있습니다.</li><li>${CALL_OPEN_NOTICE}</li><li>진동은 기기에 따라 지원하지 않을 수 있습니다. QR은 이상 상황에서 확인합니다.</li></ul>`)}
 
 function editUser(){if(!st.user)return updateLoginState();const org=userOrganization();openModal("정보수정",`<div class="form"><input id="editName" class="input" value="${esc(st.user.name)}"><select id="editOrg" class="select" onchange="populateDeptSelect('editOrg','editDept')">${organizationOptions(org?org.key:"")}</select><select id="editDept" class="select">${departmentOptions(org?org.key:"",st.user.dept)}</select><input id="editEmp" class="input" value="${esc(st.user.emp)}" maxlength="4" inputmode="numeric"><button class="btn primary full" onclick="applyEditUser()">저장</button></div>`)}
-function applyEditUser(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();closeModal();render();toast("소속 정보가 수정되었습니다.");if(notificationPermission()==="granted")setupPushMessaging(false)}
+function applyEditUser(){if(reserve.pending||reserveFirebase.pending)return;const name=document.getElementById("editName").value.trim(),orgKey=document.getElementById("editOrg").value,dept=document.getElementById("editDept").value,emp=document.getElementById("editEmp").value.trim(),org=organizationByKey(orgKey);if(!name||!org||!org.departments.includes(dept)||!/^[0-9]{4}$/.test(emp))return toast("입력값을 다시 확인해주세요.");st.user={name,orgKey,dept,emp};st.slot=assignedSlot(orgKey,todayDate());saveLocal();refreshDataScope();closeModal();render();toast("소속 정보가 수정되었습니다.");syncStaffProfile();if(notificationPermission()==="granted")setupPushMessaging(false)}
 function logout(){if(reserve.pending||reserveFirebase.pending)return toast("예약 저장을 마친 뒤 다시 시도해주세요.");st.user=null;const adminCleared=setAdminSession(false);stopScanner();try{localStorage.removeItem("sg_real_user")}catch(e){console.warn(e)}refreshDataScope();populateOrganizationSelect("org","");populateDeptSelect("org","dept","");updateLoginState();render();toast(adminCleared?"로그아웃되었습니다.":"저장된 관리자 정보를 지우지 못했어요. 브라우저의 사이트 데이터를 삭제해주세요.");}
 async function toggleHistory(){
   st.showHistory=!st.showHistory;if(!st.showHistory){render();return;}

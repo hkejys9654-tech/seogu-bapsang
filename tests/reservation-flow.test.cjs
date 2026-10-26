@@ -21,13 +21,13 @@ function setup(options={}){
   SLOTS:[['11:40',50],['11:55',50]],slotIndex:time=>['11:40','11:55'].indexOf(time),requeueTarget:r=>options.target||r.time,
   docId:(date,emp)=>`${date}_${emp}`,slotId:(date,time)=>`${date}_${time.replace(':','')}`,queueControlKey:(date,time)=>`${date}_${time.replace(':','')}`,code:(date,time,emp)=>`SGMEAL|${date}|${time}|${emp}`,
   partySizeOf:r=>Math.max(1,Math.min(10,Math.trunc(Number(r&&r.partySize)||1))),isLateReservationStatus:s=>s==='late'||s==='late_reserved',nextDate:()=> '2026-10-17',
-  dataEpoch:0,confirmedReservations:new Map(),dataState:{reservation:'loading'},reservationSnapshotReady:false,listenOwnQueue(){},
+  dataEpoch:0,confirmedReservations:new Map(),dataState:{reservation:'loading'},reservationSnapshotReady:false,listenOwnQueue(){},todayCompanion:()=>null,newShareKey:()=>'share123',
   refreshOverview:async()=>{},saveLocal(){},render(){},go(){},updateLoginState(){},toast:message=>stats.toasts.push(message),
   firebase:{firestore:{FieldValue:{serverTimestamp:()=> 'NOW',delete:()=> 'DELETE_FIELD'}}},
   db:{collection:name=>({doc:id=>`${name}/${id}`}),runTransaction:callback=>{stats.transactions++;const result=chain.then(async()=>{const pending=[];
    const value=await callback({get:async ref=>{assert.equal(pending.length,0,'transaction reads precede every write');stats.reads.push(ref);if(options.onGet)await options.onGet(ref,c,docs);return {exists:docs.has(ref),data:()=>clone(docs.get(ref))};},
-    update:(ref,data)=>pending.push({ref,data:clone(data),merge:true}),set:(ref,data,opts)=>pending.push({ref,data:clone(data),merge:!!opts?.merge})});
-   for(const w of pending){docs.set(w.ref,w.merge?merge(docs.get(w.ref)||{},w.data):w.data);stats.writes.push(w);}return value;});chain=result.catch(()=>{});return result;}}
+    delete:ref=>pending.push({ref,del:true}),update:(ref,data)=>pending.push({ref,data:clone(data),merge:true}),set:(ref,data,opts)=>pending.push({ref,data:clone(data),merge:!!opts?.merge})});
+   for(const w of pending){if(w.del)docs.delete(w.ref);else docs.set(w.ref,w.merge?merge(docs.get(w.ref)||{},w.data):w.data);stats.writes.push(w);}return value;});chain=result.catch(()=>{});return result;}}
  };vm.createContext(c);vm.runInContext(source,c);return {c,docs,stats};
 }
 function seeded(extra={},slotExtra={}){return {[`reservations/${rid}`]:row(extra),[slot()]:summary(slotExtra)};}
@@ -120,4 +120,29 @@ test('expired reservation cannot rejoin even its original session',async()=>{
 test('slot expiry during requeue also prevents committing the retry',async()=>{
  const h=setup({docs:seeded({callStatus:'passed'}),onGet:async(ref,c)=>{if(ref===slot())c.reservationTimePassed=()=>true;}});
  await h.c.requestRequeueFirebase(rid,'11:40');assert.equal(h.stats.writes.length,0);
+});
+
+const members=[{emp:'9001',name:'김팀장',dept:'기획실'},{emp:'9002',name:'이과장',dept:'기획실'}];
+test('group booking with chosen companions links each companion and a share key in one transaction',async()=>{
+ const h=setup();h.c.st.members=clone(members);await h.c.reserve();
+ const booked=h.docs.get(`reservations/${rid}`);
+ assert.deepEqual(booked.members.map(m=>m.emp),['9001','9002']);assert.equal(booked.shareKey,'share123');
+ for(const m of members)assert.deepEqual({id:h.docs.get(`companions/${day}_${m.emp}`).reservationId,owner:h.docs.get(`companions/${day}_${m.emp}`).ownerName},{id:rid,owner:'테스트'});
+ assert.equal(h.docs.get('shares/share123').reservationId,rid);assert.equal(h.stats.transactions,1);
+});
+test('a companion who already booked or already joined another group blocks the whole booking',async()=>{
+ for(const docs of [{[`reservations/${day}_9002`]:row({id:`${day}_9002`,emp:'9002',partySize:1})},{[`companions/${day}_9001`]:{reservationId:`${day}_7777`,date:day}}]){
+  const h=setup({docs});h.c.st.members=clone(members);await h.c.reserve();
+  assert.equal(h.stats.writes.length,0);assert.equal(h.docs.has(`reservations/${rid}`),false);assert.ok(h.stats.toasts.some(t=>t.includes('김팀장')||t.includes('이과장')));
+ }
+});
+test('an employee already included as a companion cannot book separately',async()=>{
+ const h=setup({docs:{[`companions/${rid}`]:{reservationId:`${day}_7777`,date:day}}});await h.c.reserve();
+ assert.equal(h.stats.writes.length,0);assert.ok(h.stats.toasts.some(t=>t.includes('동행')));
+});
+test('canceling a group removes its companion links and share link',async()=>{
+ const h=setup({docs:{...seeded({members:clone(members),shareKey:'abc123'}),[`companions/${day}_9001`]:{reservationId:rid},[`companions/${day}_9002`]:{reservationId:rid},'shares/abc123':{reservationId:rid}}});
+ await h.c.cancelFirebase(rid);
+ assert.equal(h.docs.get(`reservations/${rid}`).status,'cancelled');
+ for(const ref of [`companions/${day}_9001`,`companions/${day}_9002`,'shares/abc123'])assert.equal(h.docs.has(ref),false,ref);
 });

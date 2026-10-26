@@ -48,7 +48,7 @@ const reservation=(changes={})=>({emp:'1234',date:DAY,time:'11:40',status:'reser
 
 test('ordinary employee listens to only own reservation and own penalty, never full collections',async()=>{
   const h=setup();await h.start();
-  assert.deepEqual(h.listeners.filter(l=>l.active).map(l=>l.path).sort(),[`penalties/1234`,`reservations/${DAY}_1234`]);
+  assert.deepEqual(h.listeners.filter(l=>l.active).map(l=>l.path).sort(),[`companions/${DAY}_1234`,`penalties/1234`,`reservations/${DAY}_1234`]);
   assert.equal(h.gets.filter(g=>g.name==='slotCounts').length,6);
   assert.equal(h.gets.filter(g=>g.name==='queueControls').length,6);
   assert.equal(h.gets.some(g=>['reservations','penalties'].includes(g.name)&&g.id===null),false);
@@ -121,7 +121,7 @@ test('new call batch can notify when status remained called',async()=>{
 test('connection retry replaces failed listeners instead of accumulating subscriptions',async()=>{
   const h=setup();await h.start();const own=h.active(`reservations/${DAY}_1234`)[0];own.error(Error('offline'));assert.equal(h.run('dataState.reservation'),'error');
   h.run('retryConnection()');await h.flush();assert.equal(own.active,false);assert.equal(h.active(`reservations/${DAY}_1234`).length,1);
-  assert.equal(h.listeners.filter(l=>l.active).length,2);assert.equal(h.gets.filter(g=>g.name==='notices').at(-1).limit,10);
+  assert.equal(h.listeners.filter(l=>l.active).length,3);assert.equal(h.gets.filter(g=>g.name==='notices').at(-1).limit,10);
 });
 
 test('verified administrator is restored on browser reopen without saving the password',async()=>{
