@@ -7,12 +7,13 @@ const {webcrypto}=require('node:crypto');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const rawSource=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]).join('\n');
 // 운영 규칙은 시험용 종일 개방 스위치를 끈 상태(정식 운영)로 검증합니다.
-const source=rawSource.replace('const OPEN_ALL_DAY_FOR_TEST=true;','const OPEN_ALL_DAY_FOR_TEST=false;');
+const source=rawSource.replace(/const OPEN_ALL_DAY_FOR_TEST=(true|false);/,'const OPEN_ALL_DAY_FOR_TEST=false;');
 function app(){
  const c={Date,Intl,crypto:webcrypto,TextEncoder,Uint8Array,console,document:{addEventListener(){},getElementById:()=>null},localStorage:{getItem:()=>null}};
  vm.createContext(c);vm.runInContext(source,c);return{c,run:s=>vm.runInContext(s,c)};
 }
 const at=t=>new Date(`2026-10-19T${t}+09:00`);
+test('the shipped app has the all-day test switch off',()=>{assert.match(rawSource,/const OPEN_ALL_DAY_FOR_TEST=false;/);});
 test('booking window is 10:00 inclusive to 11:00 exclusive in Korea',()=>{
  const {c}=app();for(const [time,open] of [['09:59:59',false],['10:00:00',true],['10:59:59',true],['11:00:00',false],['11:40:00',false]])assert.equal(c.reservationWindowOpen(at(time)),open,time);
  assert.equal(c.reservationWindowState(at('09:00:00')),'before');assert.equal(c.reservationWindowState(at('11:00:00')),'closed');
