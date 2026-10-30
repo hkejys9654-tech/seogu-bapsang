@@ -94,7 +94,9 @@ function client(emp, slot = '11:40', partySize = 1, fault = null) {
     reservationWindowMessage: () => '예약 가능시간 10:00~11:00',
     isLateReservationStatus: s => s === 'late' || s === 'late_reserved',
     lateReservationNotice: () => '마감 후 예약',
-    go() {}, render() {}, toast: s => state.toasts.push(s)
+    go() {}, render() {}, toast: s => state.toasts.push(s),
+    todayCompanion: () => null, newShareKey: () => 'load' + emp, loadSchedule: async () => {},
+    versionsFromDoc: () => [], slotsForDate: () => SLOTS
   };
   vm.createContext(c); vm.runInContext(source, c);
   return { backend, state, c, emp, slot, partySize,

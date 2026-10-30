@@ -78,3 +78,16 @@ test('pre-pilot test switch opens booking all day and never expires tickets',()=
  for(const t of ['07:00:00','10:30:00','17:49:00'])assert.equal(c.reservationWindowOpen(at(t)),true,t);
  assert.equal(c.reservationTimePassed({date:'2026-10-19',time:'11:40'},at('17:00:00')),false);
 });
+
+test('admin schedule changes apply from the next day and validate times and caps',()=>{
+ const {c,run}=app();
+ assert.equal(c.cleanSlots([{time:'11:40',cap:50},{time:'11:40',cap:30}]),null);
+ assert.equal(c.cleanSlots([{time:'09:30',cap:50}]),null);
+ assert.equal(c.cleanSlots([{time:'11:40',cap:0}]),null);
+ assert.deepEqual(JSON.parse(JSON.stringify(c.cleanSlots([{time:'12:00',cap:70},{time:'11:40',cap:60}]))),[['11:40',60],['12:00',70]]);
+ const versions=[{from:'2026-10-31',slots:[{time:'11:40',cap:70},{time:'11:50',cap:70}]}];
+ assert.equal(JSON.stringify(c.slotsForDate('2026-10-30',versions)),JSON.stringify(c.slotsForDate('2026-10-30',[])));
+ assert.equal(JSON.stringify(c.slotsForDate('2026-10-31',versions)),JSON.stringify([['11:40',70],['11:50',70]]));
+ run(`SLOTS.splice(0,SLOTS.length,['11:40',70],['11:50',70])`);
+ assert.equal(c.slotEndTime('11:40'),'11:50');assert.equal(c.slotEndTime('11:50'),'12:00');
+});

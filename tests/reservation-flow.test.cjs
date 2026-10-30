@@ -21,7 +21,7 @@ function setup(options={}){
   SLOTS:[['11:40',50],['11:55',50]],slotIndex:time=>['11:40','11:55'].indexOf(time),requeueTarget:r=>options.target||r.time,
   docId:(date,emp)=>`${date}_${emp}`,slotId:(date,time)=>`${date}_${time.replace(':','')}`,queueControlKey:(date,time)=>`${date}_${time.replace(':','')}`,code:(date,time,emp)=>`SGMEAL|${date}|${time}|${emp}`,
   partySizeOf:r=>Math.max(1,Math.min(10,Math.trunc(Number(r&&r.partySize)||1))),isLateReservationStatus:s=>s==='late'||s==='late_reserved',nextDate:()=> '2026-10-17',
-  dataEpoch:0,confirmedReservations:new Map(),dataState:{reservation:'loading'},reservationSnapshotReady:false,listenOwnQueue(){},todayCompanion:()=>null,newShareKey:()=>'share123',
+  dataEpoch:0,confirmedReservations:new Map(),dataState:{reservation:'loading'},reservationSnapshotReady:false,listenOwnQueue(){},todayCompanion:()=>null,newShareKey:()=>'share123',loadSchedule:async()=>{},versionsFromDoc:snap=>snap&&snap.exists&&Array.isArray(snap.data().versions)?snap.data().versions:[],slotsForDate:(date,versions)=>{const v=(versions||[]).filter(x=>x.from<=date).sort((a,b)=>a.from.localeCompare(b.from)).pop();return v?v.slots.map(x=>[x.time,x.cap]):[['11:40',50],['11:55',50]];},
   refreshOverview:async()=>{},saveLocal(){},render(){},go(){},updateLoginState(){},toast:message=>stats.toasts.push(message),
   firebase:{firestore:{FieldValue:{serverTimestamp:()=> 'NOW',delete:()=> 'DELETE_FIELD'}}},
   db:{collection:name=>({doc:id=>`${name}/${id}`}),runTransaction:callback=>{stats.transactions++;const result=chain.then(async()=>{const pending=[];
@@ -145,4 +145,13 @@ test('canceling a group removes its companion links and share link',async()=>{
  await h.c.cancelFirebase(rid);
  assert.equal(h.docs.get(`reservations/${rid}`).status,'cancelled');
  for(const ref of [`companions/${day}_9001`,`companions/${day}_9002`,'shares/abc123'])assert.equal(h.docs.has(ref),false,ref);
+});
+
+test('booking uses the schedule effective that day inside the transaction',async()=>{
+ const small=setup({docs:{'config/slotSchedule':{versions:[{from:day,slots:[{time:'11:40',cap:2}]}]}}});await small.c.reserve();
+ assert.equal(small.stats.writes.length,0);assert.ok(small.stats.toasts.some(t=>t.includes('마감')));
+ const gone=setup({docs:{'config/slotSchedule':{versions:[{from:day,slots:[{time:'12:30',cap:50}]}]}}});await gone.c.reserve();
+ assert.equal(gone.stats.writes.length,0);assert.ok(gone.stats.toasts.some(t=>t.includes('시간표')));
+ const later=setup({docs:{'config/slotSchedule':{versions:[{from:'2099-01-01',slots:[{time:'11:40',cap:2}]}]}}});await later.c.reserve();
+ assert.equal(later.docs.get(slot()).cap,50);
 });
