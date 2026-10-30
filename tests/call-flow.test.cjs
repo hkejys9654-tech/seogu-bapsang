@@ -114,12 +114,12 @@ test('invalid custom counts cannot start a transaction',async()=>{
   }
 });
 
-test('dropdown renders every count and keeps the selected value after live renders and calls',async()=>{
+test('call size stepper keeps the selected value after live renders and calls',async()=>{
   const h=setup();h.run('setCallSize("17")');
   for(let i=0;i<2;i++){
     const panel=h.run('callPanel()');
-    assert.equal((panel.match(/<option /g)||[]).length,50);
-    assert.match(panel,/<option value="17" selected>17명/);assert.match(panel,/최대 17명 호출/);
+    assert.match(panel,/<b>17명<\/b>/);assert.match(panel,/다음 17명 호출/);
+    assert.match(panel,/setCallSize\(16\)/);assert.match(panel,/setCallSize\(18\)/);
     assert.equal(panel.includes('onclick="callNext(10)"'),false);
   }
   await h.run('callNext(st.adminCallSize)');assert.equal(h.st.adminCallSize,17);
