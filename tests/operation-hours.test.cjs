@@ -57,7 +57,7 @@ test('home keeps booking hours brief while the guide retains operational details
  assert.ok(guide.includes('11:30~11:40'));
  assert.equal(guide.includes('150명'),false);
  assert.equal(c.operationNotice().includes('현업근로자'),false);
- assert.ok(guide.includes('총 300명'));assert.equal(run('SLOTS.length'),6);
+ assert.ok(guide.includes('총 300명'));assert.equal(run('SLOTS.length'),6);assert.ok(guide.includes('10:00~11:00'));assert.equal(/QR/.test(guide),false);
 });
 test('admin verification rejects the old demo code and handles configured SHA-256 correctly',async()=>{
  const {c}=app();assert.equal(await c.verifyAdminCode('1234'),false);assert.equal(await c.verifyAdminCode(''),false);
