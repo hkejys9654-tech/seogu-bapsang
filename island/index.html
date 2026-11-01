@@ -76,6 +76,12 @@ button:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
 .loading.gone{opacity:0;pointer-events:none}
 @keyframes bob{50%{transform:translateY(-8px)}}
 
+.news-mode .chips,.news-mode .sub-actions,.news-mode .qr-wrap{display:none!important}
+.news-mode .shot{display:flex!important;flex-direction:column;gap:8px;aspect-ratio:auto;border:0;background:none;place-items:stretch}
+.news{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:#f3f6f9;color:var(--ink);text-decoration:none;text-align:left}
+.news i{flex:0 0 auto;display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#1f3a5f;color:#fff;font-style:normal;font-family:var(--display)}
+.news span{flex:1;min-width:0}.news b{display:block;font-size:14px;line-height:1.4;word-break:keep-all}.news small{display:block;margin-top:3px;font-size:12px;color:var(--muted)}.news em{font-style:normal;color:var(--muted)}
+.news-empty{padding:16px;color:var(--muted);font-size:13px}
 .who{display:block;margin-top:4px;font-size:12px;font-weight:700;color:var(--accent,var(--orange))}
 .sub-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .sub-actions button{padding:12px 6px;border-radius:14px;border:1.5px solid color-mix(in srgb,var(--accent,#ff7a21) 35%,#fff);background:#fff;font-size:13px;font-weight:700;cursor:pointer}
@@ -166,6 +172,8 @@ const PROJECTS=[
    chips:["화장실·동 이름 검색","내 위치 보기","카카오맵 길찾기"],url:"https://seogu-bell-map.seogucheong086.chatgpt.site/"}
 ];
 
+// 처음 열 때 쓰는 기본 기사(매일 아침 news.json 으로 바뀜)
+let NEWS={"updated": "2026-11-01T11:40:00+09:00", "label": "11월 1일", "items": [{"title": "광주 서구, 청소년·대학생 131명 학업·국외연수 지원", "short": "서구장학재단, 청소년·대학생 131명 장학생 선발", "source": "노컷뉴스", "count": 3, "date": "10월 30일", "url": "https://nocutnews.co.kr/news/6599880"}, {"title": "전남광주 서구, 주민 의견 반영해 구정홍보 개선 나선다", "short": "구정소식지·SNS 만족도 조사…11월 6일까지 참여", "source": "중앙이코노미뉴스", "count": 1, "date": "10월 27일", "url": "https://www.joongangenews.com/news/articleView.html?idxno=558565"}]};
 (function(){
 const $=id=>document.getElementById(id);
 $("loadImg").src=HAEON.wave;$("brandImg").src=HAEON.wave;
@@ -201,15 +209,25 @@ const ZONES=[{a:Math.PI*0.25},{a:Math.PI*0.75},{a:Math.PI*1.25},{a:Math.PI*1.75}
 ZONES.forEach(z=>{const len=9,mid=len/2+2;const p=box(1.8,0.12,len,0xe9dcc0,Math.cos(z.a)*mid,0.95,Math.sin(z.a)*mid);p.rotation.y=-z.a+Math.PI/2;});
 cyl(3.2,3.2,0.14,0xe9dcc0,0,0.95,0,null,20);
 
-/* ---------- center: city hall + Haeon ---------- */
+/* ---------- center: 광주 서구청 + news banners + Haeon ---------- */
 const hall=new THREE.Group();scene.add(hall);
-box(5,4,3,0xf3efe6,0,3,-1.2,hall);box(5.4,0.4,3.4,0xc9c1b1,0,5.2,-1.2,hall);
-const winTex=canvasTex(128,96,(x,w,h)=>{x.fillStyle="#f3efe6";x.fillRect(0,0,w,h);for(let r=0;r<3;r++)for(let c=0;c<5;c++){x.fillStyle="#8dbad0";x.fillRect(8+c*24,10+r*28,16,18);}});
-const front=new THREE.Mesh(new THREE.PlaneGeometry(5,4),new THREE.MeshLambertMaterial({map:winTex}));front.position.set(0,3,0.31);hall.add(front);
-cyl(0.06,0.06,3,0x9aa3ab,2.8,4.4,0.2,hall);box(1,0.6,0.04,0xff7a21,3.32,5.6,0.2,hall);
+box(7,5.2,3.4,0xf3efe6,0,3.5,-1.6,hall);box(7.4,0.4,3.8,0xc9c1b1,0,6.2,-1.6,hall);box(2.4,1.2,2.2,0xe7e1d4,0,7,-1.6,hall);
+const winTex=canvasTex(256,190,(x,w,h)=>{x.fillStyle="#f3efe6";x.fillRect(0,0,w,h);for(let r=0;r<4;r++)for(let c=0;c<7;c++){x.fillStyle="#8dbad0";x.fillRect(10+c*35,10+r*44,22,28);}});
+const front=new THREE.Mesh(new THREE.PlaneGeometry(7,5.2),new THREE.MeshLambertMaterial({map:winTex}));front.position.set(0,3.5,0.11);hall.add(front);
+box(2,1.5,0.3,0x6f8796,0,1.7,0.2,hall);box(2.6,0.15,1,0xc9c1b1,0,2.5,0.5,hall);
+const signTex=canvasTex(512,128,(x,w,h)=>{x.fillStyle="#1f3a5f";x.fillRect(0,0,w,h);x.fillStyle="#fff";x.font='bold 64px '+'"Jua","IBM Plex Sans KR",sans-serif';x.textAlign="center";x.textBaseline="middle";x.fillText("광주 서구청",w/2,h/2+4);});
+const sign=new THREE.Mesh(new THREE.PlaneGeometry(2.6,0.65),new THREE.MeshBasicMaterial({map:signTex}));sign.position.set(0,2.95,0.14);hall.add(sign);
+cyl(0.06,0.06,3,0x9aa3ab,3.9,6.6,-0.2,hall);box(1,0.6,0.04,0xff7a21,4.42,7.8,-0.2,hall);
+// 현수막 2개: news.json 의 오늘 기사로 매일 바뀝니다
+const BANNER_STYLE=[{bg:"#ffffff",fg:"#1f3a8a",tag:"#1f3a8a"},{bg:"#fff1a8",fg:"#b42318",tag:"#b42318"}];
+function bannerTex(item,k){const st=BANNER_STYLE[k];return canvasTex(1024,128,(x,w,h)=>{x.fillStyle=st.bg;x.fillRect(0,0,w,h);x.strokeStyle=st.tag;x.lineWidth=6;x.strokeRect(6,6,w-12,h-12);
+  x.fillStyle=st.tag;x.fillRect(22,26,176,76);x.fillStyle=st.bg;x.font='bold 40px "Jua","IBM Plex Sans KR",sans-serif';x.textAlign="center";x.textBaseline="middle";x.fillText("서구소식",110,66);
+  x.fillStyle=st.fg;x.textAlign="left";let size=58;const text=item?item.short:"오늘의 서구 소식을 불러오는 중이에요";do{x.font=`bold ${size}px "Jua","IBM Plex Sans KR",sans-serif`;size-=2;}while(x.measureText(text).width>w-250&&size>30);x.fillText(text,220,68);});}
+const banners=[0,1].map(k=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(6.4,0.8),new THREE.MeshBasicMaterial({map:bannerTex(null,k)}));m.position.set(0,5.4-k*1.1,0.16);m.userData.zone=4;hall.add(m);
+  [-3.25,3.25].forEach(x=>box(0.06,0.06,0.06,0x555555,x,5.4-k*1.1+0.36,0.17,hall));return m;});
+hall.traverse(o=>{if(o.isMesh)o.userData.zone=4;});
 const haeonTex=new THREE.TextureLoader().load(HAEON.wave,()=>requestRender());
-const haeon=new THREE.Sprite(new THREE.SpriteMaterial({map:haeonTex,transparent:true}));haeon.scale.set(3.2,3.1,1);haeon.position.set(0,2.7,2.2);scene.add(haeon);
-
+const haeon=new THREE.Sprite(new THREE.SpriteMaterial({map:haeonTex,transparent:true}));haeon.scale.set(3,2.9,1);haeon.position.set(-2.6,2.6,2.4);scene.add(haeon);
 /* ---------- people helper ---------- */
 const SKIN=[0xf3c9a6,0xe2ae86,0xcf9670],SHIRT=[0xffffff,0x3b5b8c,0xf2a65a,0x7cb7a3,0xe7798f,0x8f9aa6];
 function person(x,z,parent,c){const g=new THREE.Group();cyl(0.22,0.26,0.7,c||SHIRT[(Math.abs(x*7+z*3)|0)%SHIRT.length],0,0.35,0,g,6);const h=new THREE.Mesh(new THREE.IcosahedronGeometry(0.2,0),M(SKIN[(Math.abs(x+z)|0)%3]));h.position.y=0.9;g.add(h);g.position.set(x,0,z);parent.add(g);return g;}
@@ -281,12 +299,16 @@ function fitDist(){const r=innerWidth/innerHeight;return r<0.6?96:r<0.9?82:58;}
 OVER.dist=fitDist();Object.assign(rig,OVER);Object.assign(goal,OVER);
 
 /* ---------- labels ---------- */
+const HALL={x:0,z:1.2,a:Math.PI/2,p:{name:"광주 서구청",color:"#1f3a5f"},ring:{material:{opacity:0}},group:hall,top:9};
 const pins=ZONES.map((z,i)=>{const b=document.createElement("button");b.className="pin";b.type="button";b.innerHTML=`<i style="background:${z.p.color}">${i+1}</i>${z.p.name}`;b.onclick=()=>openZone(i);$("pins").appendChild(b);return b;});
+const hallPin=document.createElement("button");hallPin.className="pin";hallPin.type="button";hallPin.innerHTML='<i style="background:#1f3a5f">★</i>광주 서구청';hallPin.onclick=()=>openZone(4);$("pins").appendChild(hallPin);pins.push(hallPin);
 const tmp=new THREE.Vector3();
-function updatePins(){ZONES.forEach((z,i)=>{tmp.set(z.x,6.4,z.z).project(camera);const vis=tmp.z<1;const b=pins[i],half=(b.offsetWidth||120)/2+8,px=Math.max(half,Math.min(innerWidth-half,(tmp.x*0.5+0.5)*innerWidth));b.style.transform=`translate(${px}px,${(-tmp.y*0.5+0.5)*innerHeight}px) translate(-50%,-100%)`;b.classList.toggle("hidden",!vis);b.classList.toggle("dim",focus>=0&&focus!==i);if(focus>=0&&focus!==i&&innerWidth<760)b.classList.add("hidden");});}
+function updatePins(){[...ZONES,HALL].forEach((z,i)=>{tmp.set(z.x,z.top||6.4,z.z).project(camera);const vis=tmp.z<1;const b=pins[i],half=(b.offsetWidth||120)/2+8,px=Math.max(half,Math.min(innerWidth-half,(tmp.x*0.5+0.5)*innerWidth));b.style.transform=`translate(${px}px,${(-tmp.y*0.5+0.5)*innerHeight}px) translate(-50%,-100%)`;b.classList.toggle("hidden",!vis);b.classList.toggle("dim",focus>=0&&focus!==i);if(focus>=0&&focus!==i&&innerWidth<760)b.classList.add("hidden");});}
 
 /* ---------- card ---------- */
 function fillCard(i){
+  if(i===4)return fillHallCard();
+  $("card").classList.remove("news-mode");
   const p=PROJECTS[i],card=$("card");card.style.setProperty("--accent",p.color);
   $("cImg").src=HAEON[p.pose];$("cEye").textContent=`PROJECT ${p.no}`;$("cTitle").textContent=p.name;
   $("cOne").innerHTML=`${p.one}<span class="who">${p.who}</span>`;
@@ -316,18 +338,26 @@ async function copyLink(){
 let toastT=0;function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200);}
 $("cInstall").onclick=installGuide;$("cCopy").onclick=copyLink;$("gClose").onclick=()=>$("guide").hidden=true;
 $("guide").onclick=e=>{if(e.target.id==="guide")$("guide").hidden=true;};
+function fillHallCard(){
+  const card=$("card");card.classList.add("news-mode");card.style.setProperty("--accent","#1f3a5f");
+  $("cImg").src=HAEON.point;$("cEye").textContent=`오늘의 서구 소식 · ${NEWS.label||""}`;$("cTitle").textContent="광주 서구청";
+  $("cOne").innerHTML='여러 언론이 많이 다룬 서구 소식 2가지를 매일 아침 8시에 현수막으로 걸어요.';
+  $("cChips").innerHTML="";
+  $("cShot").innerHTML=(NEWS.items||[]).map((n,k)=>`<a class="news" href="${n.url}" target="_blank" rel="noopener"><i>${k+1}</i><span><b>${n.title}</b><small>${n.source}${n.count>1?` 외 ${n.count-1}곳 보도`:""}${n.date?` · ${n.date}`:""}</small></span><em>↗</em></a>`).join("")||'<div class="news-empty">오늘 소식을 불러오지 못했어요</div>';
+  const go=$("cGo");go.href="https://www.seogu.gwangju.kr/";go.textContent="서구청 누리집 ↗";go.classList.remove("off");
+}
 function openZone(i){
   focus=i;fillCard(i);$("card").classList.add("open");$("card").setAttribute("aria-hidden","false");$("hint").style.opacity=0;
-  const z=ZONES[i],wide=innerWidth>=760,narrow=innerWidth/innerHeight<0.8,card=$("card");
+  const z=i===4?HALL:ZONES[i],wide=innerWidth>=760,narrow=innerWidth/innerHeight<0.8,card=$("card");
   // shift the picture so the zone sits in the free area beside/above the card
   const ox=wide?(card.offsetWidth+20)/2:0,oy=wide?0:Math.min(card.offsetHeight,innerHeight*0.62)/2-10;
   Object.assign(goal,{tx:z.x*0.92,ty:2.2,tz:z.z*0.92,dist:narrow?34:30,az:Math.atan2(z.x,z.z),el:0.72,ox,oy});
-  ZONES.forEach((zz,k)=>zz.ring.material.opacity=k===i?0.9:0);
+  ZONES.forEach((zz,k)=>zz.ring.material.opacity=k===i?0.9:0);if(i===4)Object.assign(goal,{tx:0,ty:3.4,tz:0,az:0.15,el:0.32,dist:innerWidth/innerHeight<0.8?30:22});
   startTween();
 }
 function closeCard(){focus=-1;$("card").classList.remove("open");$("card").setAttribute("aria-hidden","true");Object.assign(goal,OVER,{az:rig.az,dist:fitDist()});ZONES.forEach(z=>z.ring.material.opacity=0);startTween();}
 $("cClose").onclick=closeCard;
-$("cPrev").onclick=()=>openZone((focus+3)%4);$("cNext").onclick=()=>openZone((focus+1)%4);
+$("cPrev").onclick=()=>openZone((focus+4)%5);$("cNext").onclick=()=>openZone((focus+1)%5);
 
 /* ---------- list view ---------- */
 $("listGrid").innerHTML=PROJECTS.map((p,i)=>`<button class="lcard" type="button" data-i="${i}"><i style="background:${p.color}">${i+1}</i><div><b>${p.name}</b><small>${p.one}</small></div></button>`).join("");
@@ -347,8 +377,8 @@ cv.addEventListener("pointermove",e=>{if(!pointers.has(e.pointerId))return;point
 function up(e){pointers.delete(e.pointerId);$("stage").classList.remove("dragging");if(down&&!dragging&&performance.now()-down.t<400)pick(e.clientX,e.clientY);if(pointers.size===0){down=null;dragging=false;}}
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
 cv.addEventListener("wheel",e=>{e.preventDefault();goal.dist=clamp(goal.dist*(1+Math.sign(e.deltaY)*0.08),18,95);startTween(true);},{passive:false});
-function pick(x,y){ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);ray.setFromCamera(ndc,camera);const hit=ray.intersectObjects(ZONES.map(z=>z.group),true)[0];if(hit&&hit.object.userData.zone!==undefined)openZone(hit.object.userData.zone);else if(focus>=0)closeCard();}
-addEventListener("keydown",e=>{if(e.key==="Escape"&&focus>=0)closeCard();if(e.key==="ArrowRight"&&focus>=0)openZone((focus+1)%4);if(e.key==="ArrowLeft"&&focus>=0)openZone((focus+3)%4);});
+function pick(x,y){ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);ray.setFromCamera(ndc,camera);const hit=ray.intersectObjects([...ZONES.map(z=>z.group),hall],true)[0];if(hit&&hit.object.userData.zone!==undefined)openZone(hit.object.userData.zone);else if(focus>=0)closeCard();}
+addEventListener("keydown",e=>{if(e.key==="Escape"&&focus>=0)closeCard();if(e.key==="ArrowRight"&&focus>=0)openZone((focus+1)%5);if(e.key==="ArrowLeft"&&focus>=0)openZone((focus+4)%5);});
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
 /* ---------- render loop: runs only while something moves ---------- */
@@ -372,6 +402,10 @@ function frame(t){
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)requestRender();});
 addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(focus<0){goal.dist=fitDist();}startTween();});
 
+/* ---------- daily news for the banners ---------- */
+function applyNews(){banners.forEach((m,k)=>{const old=m.material.map;m.material.map=bannerTex((NEWS.items||[])[k],k);m.material.needsUpdate=true;if(old)old.dispose();});if(focus===4)fillHallCard();requestRender();}
+applyNews();
+if(location.protocol.startsWith("http"))fetch("./news.json?t="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d&&Array.isArray(d.items)&&d.items.length){NEWS=d;applyNews();}}).catch(()=>{});
 /* ---------- intro ---------- */
 rig.dist=OVER.dist*1.35;rig.az=OVER.az-0.9;rig.el=0.95;placeCamera();
 const fontsReady=document.fonts&&document.fonts.ready?Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,1500))]):Promise.resolve();
