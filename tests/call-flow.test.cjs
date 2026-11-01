@@ -89,8 +89,8 @@ test('local demo retains call and close behavior',async()=>{
   const h=setup({firebaseOn:false});await h.run('callNext(10)');assert.equal(h.st.reservations.find(r=>r.id==='a').callStatus,'passed');await h.run('closeCurrentCall()');assert.equal(h.st.reservations.find(r=>r.id==='b').callStatus,'passed');await h.run('toggleQueueClosed()');assert.equal(h.st.queueControls[slot].closed,true);assert.equal(h.transactionCalls,0);
 });
 
-test('custom counts from one through fifty call exactly that many individual reservations',async()=>{
-  for(const size of [1,7,17,50]){
+test('custom counts from one up to the slot capacity call exactly that many individual reservations',async()=>{
+  for(const size of [1,7,17,40]){
     const rows=Array.from({length:50},(_,i)=>({id:String(i+1),queueNumber:i+1,partySize:1,callStatus:'waiting'}));
     const h=setup({rows});await h.run(`callNext(${size})`);
     assert.equal([...h.records].filter(([key,r])=>key.startsWith('reservations/')&&r.callStatus==='called').length,size);

@@ -21,10 +21,10 @@ test('booking window is 10:00 inclusive to 11:00 exclusive in Korea',()=>{
 test('Korea calendar date is used even when UTC date is still yesterday',()=>{
  assert.deepEqual(JSON.parse(JSON.stringify(app().c.koreaClock(new Date('2026-10-18T15:00:00Z')))),{date:'2026-10-19',minutes:0});
 });
-test('six consecutive five minute employee sessions hold exactly 300 people',()=>{
+test('six consecutive five minute employee sessions hold exactly 240 people',()=>{
  const {c,run}=app(),slots=JSON.parse(run('JSON.stringify(SLOTS)'));
- assert.deepEqual(slots,[['11:40',50],['11:45',50],['11:50',50],['11:55',50],['12:00',50],['12:05',50]]);
- assert.equal(slots.reduce((n,s)=>n+s[1],0),300);
+ assert.deepEqual(slots,[['11:40',40],['11:45',40],['11:50',40],['11:55',40],['12:00',40],['12:05',40]]);
+ assert.equal(slots.reduce((n,s)=>n+s[1],0),240);
  assert.deepEqual(slots.map(s=>c.slotEndTime(s[0])),['11:45','11:50','11:55','12:00','12:05','12:10']);
 });
 test('every department can select every session without overflow quotas or month rotation',()=>{
@@ -57,7 +57,7 @@ test('home keeps booking hours brief while the guide retains operational details
  assert.ok(guide.includes('11:30~11:40'));
  assert.equal(guide.includes('150명'),false);
  assert.equal(c.operationNotice().includes('현업근로자'),false);
- assert.ok(guide.includes('총 300명'));assert.equal(run('SLOTS.length'),6);assert.ok(guide.includes('10:00~11:00'));assert.equal(/QR/.test(guide),false);
+ assert.ok(guide.includes('총 240명'));assert.equal(run('SLOTS.length'),6);assert.ok(guide.includes('10:00~11:00'));assert.equal(/QR/.test(guide),false);
 });
 test('admin verification rejects the old demo code and handles configured SHA-256 correctly',async()=>{
  const {c}=app();assert.equal(await c.verifyAdminCode('1234'),false);assert.equal(await c.verifyAdminCode(''),false);
