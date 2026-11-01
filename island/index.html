@@ -104,11 +104,33 @@ button:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
   .card{left:auto;right:20px;top:calc(env(safe-area-inset-top,0px) + 90px);bottom:20px;width:380px;max-height:none;transform:translateX(calc(100% + 40px))}
   .card.open{transform:none}
 }
+/* 걷기 모드: 들어가기 버튼, 조이스틱, 말 걸기, 대화창 */
+.enter{position:fixed;z-index:5;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 58px);border:0;border-radius:999px;padding:14px 22px;background:var(--orange);color:#fff;font-size:15px;font-weight:700;box-shadow:0 10px 28px rgba(217,89,10,.35);cursor:pointer;white-space:nowrap}
+.stick{position:fixed;z-index:5;left:calc(env(safe-area-inset-left,0px) + 22px);bottom:calc(env(safe-area-inset-bottom,0px) + 30px);width:128px;height:128px;border-radius:50%;background:rgba(255,255,255,.32);border:2px solid rgba(255,255,255,.75);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);touch-action:none}
+.stick i{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:#fff;box-shadow:0 4px 14px rgba(20,60,80,.25);pointer-events:none}
+.talk-btn{position:fixed;z-index:5;right:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 48px);border:0;border-radius:999px;padding:16px 22px;background:var(--orange);color:#fff;font-size:16px;font-weight:700;box-shadow:0 10px 28px rgba(217,89,10,.35);cursor:pointer;animation:pop .25s ease-out}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
+body.walking .pin{pointer-events:none}
+body.walking .credit{display:none}
+body.walking .brand p{display:none}
+body.walking .brand{padding:9px 14px 9px 10px}
+body.walking .brand img{width:32px}
+body.walking .brand h1{font-size:18px}
+.brand h1{white-space:nowrap}
+body.walking .hint{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 74px);white-space:normal;text-align:center;max-width:calc(100vw - 40px)}
+.talk{position:fixed;z-index:9;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);max-width:520px;margin:0 auto;padding:16px;border-radius:26px;background:var(--paper-solid);box-shadow:0 18px 50px rgba(20,60,80,.3);animation:pop .25s ease-out}
+.thead{display:flex;gap:10px;align-items:center}.thead img{width:52px;height:auto;flex:0 0 auto}
+.thead b{display:block;font-family:var(--display);font-weight:400;font-size:20px;line-height:1.1}.thead small{display:block;margin-top:2px;font-size:12px;font-weight:700;color:var(--accent,var(--orange))}
+.thead .x{margin-left:auto}
+.tmsg{margin:12px 2px 14px;font-size:15px;line-height:1.65;word-break:keep-all;min-height:3.3em}
+.topts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.topts button,.topts a{display:flex;align-items:center;justify-content:center;min-height:46px;padding:10px 12px;border-radius:14px;border:1.5px solid color-mix(in srgb,var(--accent,#ff7a21) 30%,#fff);background:#fff;color:var(--ink);font-size:14px;font-weight:700;text-decoration:none;text-align:center;word-break:keep-all;cursor:pointer}
+.topts .main{background:var(--accent,var(--orange));border-color:transparent;color:#fff}
+.topts .wide{grid-column:1/-1;justify-content:flex-start;text-align:left}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-
 
 <div id="stage"></div>
 <div class="loading" id="loading"><img alt="" id="loadImg"></div>
@@ -149,6 +171,16 @@ button:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
   <ol class="gsteps" id="gSteps"></ol>
   <a class="go" id="gOpen" target="_blank" rel="noopener">바로 열기 ↗</a>
 </div></div>
+<button class="enter" id="enterBtn" type="button">🚶 섬에 들어가 걷기</button>
+<div id="walkUi" hidden>
+  <div class="stick" id="stick" aria-label="걷기 조이스틱"><i id="knob"></i></div>
+  <button class="talk-btn" id="talkBtn" type="button" hidden>💬 말 걸기</button>
+</div>
+<div class="talk" id="talk" role="dialog" aria-labelledby="tName" hidden>
+  <div class="thead"><img alt="" id="tImg"><div><b id="tName"></b><small id="tRole"></small></div><button class="x" id="tClose" type="button" aria-label="대화 닫기">×</button></div>
+  <p class="tmsg" id="tMsg" aria-live="polite"></p>
+  <div class="topts" id="tOpts"></div>
+</div>
 <div class="toast" id="toast" hidden></div>
 <div class="list" id="list" hidden><div class="list-grid" id="listGrid"></div></div>
 
@@ -160,16 +192,20 @@ const HAEON={"wave": "data:image/webp;base64,UklGRnZEAABXRUJQVlA4WAoAAAAQAAAAZwE
 const PROJECTS=[
   {key:"bapsang",no:"01",name:"서구밥상",color:"#ff7a21",pose:"thumbs",who:"서구청 직원",
    one:"구청 구내식당 입장 예약. 시간을 고르고 초록색으로 바뀌면 들어가요.",
-   chips:["5분 단위 입장","대기번호 호출","단체 동행 링크"],url:"https://hkejys9654-tech.github.io/seogu-bapsang/"},
+   chips:["5분 단위 입장","대기번호 호출","단체 동행 링크"],url:"https://hkejys9654-tech.github.io/seogu-bapsang/",
+   talk:{hi:"어서 오세요! 구내식당 입장을 도와주는 밥상 해온이예요. 뭐가 궁금하세요?",what:"점심때 줄 서서 기다리지 않도록, 구내식당에 들어갈 시간을 미리 예약하는 앱이에요. 시간을 고르면 대기번호가 나오고, 내 차례가 되면 화면이 초록색으로 바뀌어요.",who:"서구청 직원이라면 누구나 쓸 수 있어요. 팀이 같이 갈 땐 '여럿이'로 한 번에 예약하고, 입장표 링크를 보내 동행을 부르면 돼요."}},
   {key:"citizen",no:"02",name:"시민참여단 통합어플",color:"#2f9e6e",pose:"point",who:"여성친화도시 시민참여단",
    one:"동네 안전 의견을 지도에 남기고, 함께가게도 함께 살펴요.",
-   chips:["안전지도 의견 남기기","함께가게 모니터링","내 의견 모아보기"],url:"https://hkejys9654-tech.github.io/seogu-safety-map/"},
+   chips:["안전지도 의견 남기기","함께가게 모니터링","내 의견 모아보기"],url:"https://hkejys9654-tech.github.io/seogu-safety-map/",
+   talk:{hi:"반가워요! 시민참여단과 함께 동네를 살피는 참여단 해온이예요.",what:"동네에서 어둡거나 불안한 곳, 좋아진 곳을 지도에 콕 찍어 의견으로 남기는 앱이에요. 함께가게 모니터링도 여기서 같이 해요.",who:"서구 여성친화도시 시민참여단 분들이 써요. 내가 남긴 의견은 한곳에 모아서 다시 볼 수 있어요."}},
   {key:"family",no:"03",name:"함께가정 · 함께 잇다",color:"#e0628a",pose:"heart",who:"「함께 잇다」 참여 가정",
    one:"우리 가족 역할을 함께 살펴보고, 30일 동안의 변화를 사전·사후 진단으로 기록해요.",
-   chips:["가정 번호로 시작","사전·사후 진단","30일 변화 기록"],url:"https://haeoni-banban-family.jimmmmay.chatgpt.site/"},
+   chips:["가정 번호로 시작","사전·사후 진단","30일 변화 기록"],url:"https://haeoni-banban-family.jimmmmay.chatgpt.site/",
+   talk:{hi:"안녕하세요! 가족을 이어주는 함께 해온이예요.",what:"「함께 잇다」 프로그램에서 우리 집 역할 나누기를 가족이 함께 살펴보는 앱이에요. 시작할 때와 30일 뒤에 진단해서 무엇이 달라졌는지 기록해요.",who:"「함께 잇다」에 참여하는 가정이 써요. 안내받은 가정 번호로 시작하면 돼요."}},
   {key:"bell",no:"04",name:"우리 동네 비상벨 찾기",color:"#d23b3b",pose:"jump",who:"서구 주민 누구나",
    one:"비상벨이 설치된 서구 공중화장실을 지도에서 찾고 바로 길찾기까지.",
-   chips:["화장실·동 이름 검색","내 위치 보기","카카오맵 길찾기"],url:"https://seogu-bell-map.seogucheong086.chatgpt.site/"}
+   chips:["화장실·동 이름 검색","내 위치 보기","카카오맵 길찾기"],url:"https://seogu-bell-map.seogucheong086.chatgpt.site/",
+   talk:{hi:"안녕하세요! 안심 귀갓길을 지키는 안심 해온이예요.",what:"서구 공중화장실 가운데 비상벨이 있는 곳을 지도에서 찾아주는 앱이에요. 화장실이나 동 이름으로 검색하고, 카카오맵으로 바로 길찾기까지 돼요.",who:"서구 주민이라면 누구나 쓸 수 있어요. 급할 땐 '내 위치 보기'로 가까운 곳부터 찾아보세요."}}
 ];
 
 // 처음 열 때 쓰는 기본 기사(매일 아침 news.json 으로 바뀜)
@@ -226,11 +262,65 @@ function bannerTex(item,k){const st=BANNER_STYLE[k];return canvasTex(1024,128,(x
 const banners=[0,1].map(k=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(6.4,0.8),new THREE.MeshBasicMaterial({map:bannerTex(null,k)}));m.position.set(0,5.4-k*1.1,0.16);m.userData.zone=4;hall.add(m);
   [-3.25,3.25].forEach(x=>box(0.06,0.06,0.06,0x555555,x,5.4-k*1.1+0.36,0.17,hall));return m;});
 hall.traverse(o=>{if(o.isMesh)o.userData.zone=4;});
-const haeonTex=new THREE.TextureLoader().load(HAEON.wave,()=>requestRender());
-const haeon=new THREE.Sprite(new THREE.SpriteMaterial({map:haeonTex,transparent:true}));haeon.scale.set(3,2.9,1);haeon.position.set(-2.6,2.6,2.4);scene.add(haeon);
-/* ---------- people helper ---------- */
-const SKIN=[0xf3c9a6,0xe2ae86,0xcf9670],SHIRT=[0xffffff,0x3b5b8c,0xf2a65a,0x7cb7a3,0xe7798f,0x8f9aa6];
-function person(x,z,parent,c){const g=new THREE.Group();cyl(0.22,0.26,0.7,c||SHIRT[(Math.abs(x*7+z*3)|0)%SHIRT.length],0,0.35,0,g,6);const h=new THREE.Mesh(new THREE.IcosahedronGeometry(0.2,0),M(SKIN[(Math.abs(x+z)|0)%3]));h.position.y=0.9;g.add(h);g.position.set(x,0,z);parent.add(g);return g;}
+/* ---------- 3D 해온이: 부위를 한 덩어리로 합쳐서 가볍게 그립니다 ---------- */
+const HG={s:new THREE.SphereGeometry(1,18,14),lo:new THREE.SphereGeometry(1,10,8),cone:new THREE.ConeGeometry(1,1,7),cyl:new THREE.CylinderGeometry(1,1,1,12),box:new THREE.BoxGeometry(1,1,1),tor:new THREE.TorusGeometry(1,.26,8,20),
+  bot:new THREE.SphereGeometry(1,18,8,0,Math.PI*2,Math.PI/2,Math.PI/2),cap:new THREE.SphereGeometry(1,18,8,0,Math.PI*2,0,Math.PI*.42)};
+const HC={cream:0xf6eedf,beak:0xe08d4b,beak2:0xc9733a,mouth:0x8e3427,eye:0x2a1c15,cheek:0xf3a184,feet:0xd67a3c,white:0xffffff};
+const HMAT=new THREE.MeshLambertMaterial({vertexColors:true}),Z3=new THREE.Vector3(0,0,1);
+function T(x,y,z,sx,sy,sz,rx,ry,rz){return new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),new THREE.Vector3(sx,sy===undefined?sx:sy,sz===undefined?sx:sz));}
+// 머리(타원구) 표면에 납작하게 붙는 부위: 눈, 볼
+function onHead(x,y,sx,sy,sz){const dy=y-1,z=.47*Math.sqrt(Math.max(0,1-(x/.5)**2-(dy/.54)**2)),n=new THREE.Vector3(x/.25,dy/.2916,z/.2209).normalize();
+  return {z,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromUnitVectors(Z3,n),new THREE.Vector3(sx,sy,sz))};}
+function merged(parts){
+  let n=0;const list=parts.map(([g,c,m])=>{const k=g.index?g.toNonIndexed():g.clone();k.applyMatrix4(m);n+=k.attributes.position.count;return [k,new THREE.Color(c)];});
+  const pos=new Float32Array(n*3),nor=new Float32Array(n*3),col=new Float32Array(n*3);let o=0;
+  list.forEach(([k,c])=>{const cnt=k.attributes.position.count;pos.set(k.attributes.position.array,o*3);nor.set(k.attributes.normal.array,o*3);for(let i=0;i<cnt;i++){col[(o+i)*3]=c.r;col[(o+i)*3+1]=c.g;col[(o+i)*3+2]=c.b;}o+=cnt;k.dispose();});
+  const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("normal",new THREE.BufferAttribute(nor,3));g.setAttribute("color",new THREE.BufferAttribute(col,3));g.computeBoundingSphere();return g;
+}
+function haeonParts(o){
+  const top=o.top,sl=o.sleeve||top,pants=o.pants||0x3d4a5c;
+  const P=[[HG.s,HC.cream,T(0,1,0,.5,.54,.47)],[HG.s,top,T(0,.42,0,.34,.36,.31)]];
+  if(o.cap!==undefined)P.push([HG.cap,o.cap,T(0,1,-.01,.52,.57,.5)],[HG.lo,o.cap,T(0,1.17,.43,.23,.03,.18,.12,0,0)]);
+  else P.push([HG.cone,HC.cream,T(0,1.6,-.03,.07,.2,.07)],[HG.cone,HC.cream,T(-.09,1.56,-.02,.055,.16,.055,0,0,.55)],[HG.cone,HC.cream,T(.09,1.56,-.02,.055,.16,.055,0,0,-.55)]);
+  [-1,1].forEach(s=>{const e=onHead(s*.18,1.05,.095,.115,.06);P.push([HG.s,HC.eye,e.m],[HG.lo,HC.white,T(s*.18+.035,1.09,e.z+.04,.032)],[HG.lo,HC.cheek,onHead(s*.31,.92,.085,.065,.02).m]);});
+  P.push([HG.s,HC.mouth,T(0,.905,.43,.1,.06,.08)],[HG.s,HC.beak,T(0,.955,.47,.17,.07,.13,-.12,0,0)],[HG.s,HC.beak2,T(0,.86,.45,.13,.055,.1,.15,0,0)]);
+  const x=o.extra;
+  if(x==="scarf")P.push([HG.tor,o.scarf||HC.white,T(0,.72,0,.27,.27,.27,Math.PI/2,0,0)],[HG.box,o.scarf||HC.white,T(.13,.55,.28,.08,.18,.04,0,0,.2)]);
+  if(x==="apron")P.push([HG.box,0x8a5a3c,T(0,.36,.3,.42,.4,.03)],[HG.box,0x8a5a3c,T(0,.62,.26,.2,.12,.03)]);
+  if(x==="suit")P.push([HG.box,HC.white,T(0,.63,.255,.12,.12,.03,0,0,Math.PI/4)],[HG.box,0xc23b3b,T(0,.53,.3,.05,.16,.025)]);
+  if(x==="overall")P.push([HG.bot,0x2e3f63,T(0,.42,0,.35,.37,.32)],[HG.box,0x2e3f63,T(0,.55,.29,.22,.18,.03)]);
+  if(x==="stripe")P.push([HG.cyl,0xfff1a8,T(0,.4,0,.35,.06,.32)]);
+  if(x==="collar")P.push([HG.tor,HC.white,T(0,.73,0,.2,.2,.2,Math.PI/2,0,0)]);
+  const arm=()=>[[HG.lo,sl,T(0,-.12,0,.11,.17,.11)],[HG.lo,HC.cream,T(0,-.29,.02,.1,.12,.085)]];
+  const leg=()=>[[HG.cyl,pants,T(0,-.06,0,.065,.12,.065)],[HG.lo,HC.feet,T(0,-.16,.07,.1,.045,.15)]];
+  return {P,arm,leg,sl,pants};
+}
+const geoCache={};function cached(key,fn){return geoCache[key]||(geoCache[key]=fn());}
+const SHADOW_G=new THREE.CircleGeometry(.42,18),SHADOW_M=new THREE.MeshBasicMaterial({color:0x1d3b2a,transparent:true,opacity:.18,depthWrite:false});
+// 움직이는 해온이: 몸통 1 + 팔 2 + 다리 2 덩어리
+function makeHaeon(o,scale){
+  const {P,arm,leg,sl,pants}=haeonParts(o),root=new THREE.Group(),inner=new THREE.Group();root.add(inner);
+  inner.add(new THREE.Mesh(merged(P),HMAT));
+  const arms=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.29,.62,0);p.rotation.z=s*.38;p.add(new THREE.Mesh(cached("a"+sl,()=>merged(arm())),HMAT));inner.add(p);return p;});
+  const legs=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.13,.2,0);p.add(new THREE.Mesh(cached("l"+pants,()=>merged(leg())),HMAT));inner.add(p);return p;});
+  const sh=new THREE.Mesh(SHADOW_G,SHADOW_M);sh.rotation.x=-Math.PI/2;sh.position.y=.03;root.add(sh);
+  root.scale.setScalar(scale||1);
+  return {root,inner,arms,legs,phase:0,v:0,wave:0,yaw:0,seed:Math.random()*6};
+}
+// 서 있기만 하는 해온이: 한 덩어리
+function staticHaeon(o){
+  const {P,arm,leg}=haeonParts(o),all=[...P];
+  [-1,1].forEach(s=>{const A=T(s*.29,.62,0,1,1,1,0,0,s*.38),L=T(s*.13,.2,0,1);arm().forEach(([g,c,m])=>all.push([g,c,A.clone().multiply(m)]));leg().forEach(([g,c,m])=>all.push([g,c,L.clone().multiply(m)]));});
+  return new THREE.Mesh(cached("s"+o.top,()=>merged(all)),HMAT);
+}
+function animHaeon(h,dt,s){
+  const w=Math.min(1,h.v/1.1),sn=Math.sin(h.phase+=dt*h.v*5.5);
+  h.legs[0].rotation.x=sn*.75*w;h.legs[1].rotation.x=-sn*.75*w;h.arms[0].rotation.x=-sn*.55*w;h.arms[1].rotation.x=h.wave>0?0:sn*.55*w;
+  h.inner.position.y=Math.abs(Math.cos(h.phase))*.07*w;h.inner.rotation.z=sn*.06*w;h.inner.scale.y=1+Math.sin(s*2.4+h.seed)*.015*(1-w);
+  if(h.wave>0)h.wave-=dt;const g=h.wave>0?2.5+Math.sin(s*12)*.35:.38;h.arms[1].rotation.z+=(g-h.arms[1].rotation.z)*Math.min(1,dt*10);
+}
+const SHIRT=[0xffffff,0x3b5b8c,0xf2a65a,0x7cb7a3,0xe7798f,0x8f9aa6];
+function person(x,z,parent,c){const m=staticHaeon({top:c||SHIRT[(Math.abs(x*7+z*3)|0)%SHIRT.length]});m.scale.setScalar(.7);m.position.set(x,.02,z);m.rotation.y=Math.PI;parent.add(m);return m;}
 
 /* ---------- zone 1: 서구밥상 (cafeteria + queue) ---------- */
 function zoneBapsang(g){
@@ -291,6 +381,63 @@ scene.add(trunks,leaves);
 const boat=new THREE.Group();box(2.6,0.6,1,0xffffff,0,0,0,boat);box(1,0.7,0.8,0xff7a21,-0.3,0.6,0,boat);cyl(0.05,0.05,2,0x8a6a4a,0.5,1.1,0,boat,5);boat.position.set(30,-0.3,12);scene.add(boat);
 const clouds=[];for(let i=0;i<6;i++){const c=new THREE.Group();for(let k=0;k<3;k++){const p=new THREE.Mesh(new THREE.IcosahedronGeometry(1.4+k*0.35,1),new THREE.MeshLambertMaterial({color:0xffffff,flatShading:true,transparent:true,opacity:.92}));p.position.set(k*1.8-1.8,(k%2)*0.4,0);c.add(p);}c.position.set(-40+i*16,18+(i%3)*3,-30+((i*23)%50));scene.add(c);clouds.push(c);}
 
+/* ---------- 걷기 세계: 땅 높이와 부딪힘 ---------- */
+function groundAt(x,z){const r=Math.hypot(x,z);if(r<3.2)return 1.02;for(const zz of ZONES){const t=x*Math.cos(zz.a)+z*Math.sin(zz.a),s=Math.abs(-x*Math.sin(zz.a)+z*Math.cos(zz.a));if(t>2&&t<11&&s<.9)return 1.01;}return r<14?.9:r<14.6?.9-(r-14)/.6*.25:.65;}
+scene.updateMatrixWorld(true);
+const OBST=[],RECTS=[{x0:-3.75,x1:3.75,z0:-3.55,z1:.38,h:8}];
+const LOCAL_OBST=[
+  [[-1.6,0,1.9],[0,0,1.9],[1.6,0,1.9],[-.7,3.2,.15],[.7,3.2,.15],...[0,1,2,3,4,5].map(i=>[0,2.6+i*.75,.3])],
+  [[-1.1,0,.5],[-.35,0,.5],[.35,0,.5],[1.1,0,.5],[-2.2,1.6,.3],[2.3,1.2,.3],[1.6,-2,.3],[-1,1.8,.3],[-.4,2.1,.3],[.6,1.9,.3]],
+  [[-1.8,-1.2,1.15],[1.8,-1.4,1.15],[-1.6,1.8,1.15],[1.9,1.6,1.15],[0,0,.5],[-.5,.4,.3],[.5,.3,.3]],
+  [[-2,-1.6,1.1],[-2,1.2,1.15],[2,-1,1.15],[2,1.8,1],[-.95,-2.6,.2],[.95,-.4,.2],[-.95,1.6,.2],[.95,3,.2],[.2,-1.4,.3]]];
+{const v=new THREE.Vector3();ZONES.forEach((z,i)=>LOCAL_OBST[i].forEach(([x,y,r])=>{v.set(x,0,y);z.group.localToWorld(v);OBST.push({x:v.x,z:v.z,r,h:r>.9?4.6:0});}));}
+OBST.push({x:3.9,z:-.2,r:.15,h:0});TREE.forEach(([x,z,s])=>OBST.push({x,z,r:.55*s,h:0}));
+function collide(p,r){
+  for(const o of OBST){const dx=p.x-o.x,dz=p.z-o.z,d=Math.hypot(dx,dz),m=o.r+r;if(d<m&&d>1e-4){p.x=o.x+dx/d*m;p.z=o.z+dz/d*m;}}
+  for(const b of RECTS){const cx=clamp(p.x,b.x0,b.x1),cz=clamp(p.z,b.z0,b.z1),dx=p.x-cx,dz=p.z-cz,d=Math.hypot(dx,dz);
+    if(d<r){if(d>1e-4){p.x=cx+dx/d*r;p.z=cz+dz/d*r;}else{const e=[[p.x-b.x0,"x",b.x0-r],[b.x1-p.x,"x",b.x1+r],[p.z-b.z0,"z",b.z0-r],[b.z1-p.z,"z",b.z1+r]].sort((a,c)=>a[0]-c[0])[0];p[e[1]]=e[2];}}}
+  const R=Math.hypot(p.x,p.z),lim=18.6;if(R>lim){p.x*=lim/R;p.z*=lim/R;}
+}
+function camBlocked(x,y,z){for(const b of RECTS)if(y<b.h&&x>b.x0-.3&&x<b.x1+.3&&z>b.z0-.3&&z<b.z1+.3)return true;for(const o of OBST)if(y<o.h&&Math.hypot(x-o.x,z-o.z)<o.r+.3)return true;return false;}
+function angLerp(a,b,k){const d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;return a+d*k;}
+
+/* ---------- 건물 앞 안내 해온이(NPC) ---------- */
+function bubbleTex(color){return canvasTex(128,108,(x)=>{x.fillStyle="#fff";x.beginPath();x.moveTo(36,6);x.arcTo(122,6,122,82,30);x.arcTo(122,82,6,82,30);x.arcTo(6,82,6,6,30);x.arcTo(6,6,122,6,30);x.fill();
+  x.beginPath();x.moveTo(50,80);x.lineTo(64,102);x.lineTo(78,80);x.fill();x.fillStyle=color;[38,64,90].forEach(c=>{x.beginPath();x.arc(c,44,9,0,7);x.fill();});});}
+const NPCS=[
+  {name:"밥상 해온이",look:{top:0xefe3cf,pants:0x3f4f66,extra:"apron"}},
+  {name:"참여단 해온이",look:{top:0x2f9e6e,pants:0x3d4a5c,cap:0x2f9e6e,extra:"collar"}},
+  {name:"함께 해온이",look:{top:0xf2a7b8,pants:0x2e3f63,extra:"overall"}},
+  {name:"안심 해온이",look:{top:0xd23b3b,pants:0x2d3440,extra:"stripe"}},
+  {name:"안내 해온이",look:{top:0x22355a,pants:0x22355a,extra:"suit"}}].map((n,i)=>{
+  let x=-2.3,z=2.1,yaw=.35;if(i<4){const a=ZONES[i].a;x=Math.cos(a)*8.3-Math.sin(a)*1.5;z=Math.sin(a)*8.3+Math.cos(a)*1.5;yaw=Math.atan2(-x,-z);}
+  const h=makeHaeon(n.look,1);h.root.position.set(x,groundAt(x,z),z);h.root.rotation.y=h.yaw=h.home=yaw;h.root.userData.npc=i;scene.add(h.root);
+  const color=i<4?PROJECTS[i].color:"#1f3a5f",b=new THREE.Sprite(new THREE.SpriteMaterial({map:bubbleTex(color),transparent:true,depthWrite:false}));b.scale.set(.62,.52,1);b.position.y=1.95;b.visible=false;h.root.add(b);h.bubble=b;
+  return {...n,i,x,z,h,color};});
+
+/* ---------- 내 해온이 ---------- */
+const player=makeHaeon({top:0xc8372d,pants:0x5b4636,extra:"scarf"},1);
+const P={x:0,z:4.6,vx:0,vz:0};player.root.position.set(P.x,groundAt(P.x,P.z),P.z);player.root.rotation.y=player.yaw=Math.PI;scene.add(player.root);
+
+/* ---------- 길을 걷는 해온이 6명: 안쪽 둥근 길 + 건물로 가는 길 ---------- */
+const NODES=[];for(let k=0;k<16;k++){const a=k*Math.PI/8;NODES.push({x:Math.cos(a)*6.6,z:Math.sin(a)*6.6,n:[(k+1)%16,(k+15)%16]});}
+ZONES.forEach((z,i)=>{const id=NODES.length,ring=2+4*i;NODES.push({x:Math.cos(z.a)*8.6,z:Math.sin(z.a)*8.6,n:[ring],end:Math.atan2(Math.cos(z.a),Math.sin(z.a))});NODES[ring].n.push(id);});
+function walkerAt(w){const a=NODES[w.from],b=NODES[w.to],dx=b.x-a.x,dz=b.z-a.z,L=Math.hypot(dx,dz)||1;return {x:a.x+dx*w.t-dz/L*.42,z:a.z+dz*w.t+dx/L*.42,yaw:Math.atan2(dx,dz),L};}
+const walkers=[{top:0xf5c84c,extra:"scarf"},{top:0x7cc4e8,cap:0xf5c84c},{top:0x8fd6b5,extra:"overall"},{top:0xb8a4e3,extra:"collar"},{top:0xff9f5a,cap:0x3b5b8c},{top:0x9aa6b2,extra:"scarf",scarf:0xe7798f}].map((o,k)=>{
+  const h=makeHaeon(o,.9),from=[0,3,5,8,11,13][k],w={h,from,to:NODES[from].n[k%2],t:(k*.37)%1,pause:0,met:false},p=walkerAt(w);
+  h.root.position.set(p.x,groundAt(p.x,p.z),p.z);h.root.rotation.y=h.yaw=h.goal=p.yaw;scene.add(h.root);return w;});
+const SPEED_W=1.15;
+function updateWalkers(dt){walkers.forEach(w=>{
+  const h=w.h,p=h.root.position,dp=Math.hypot(p.x-P.x,p.z-P.z);h.v=0;
+  if(walking&&dp<1.6){h.goal=Math.atan2(P.x-p.x,P.z-p.z);if(!w.met){w.met=true;h.wave=1.2;}}
+  else{if(dp>3)w.met=false;
+    if(w.pause>0)w.pause-=dt;
+    else{const s=walkerAt(w);w.t+=dt*SPEED_W/s.L;h.v=SPEED_W;h.goal=s.yaw;
+      if(w.t>=1){const prev=w.from;w.from=w.to;const nb=NODES[w.from].n.filter(n=>n!==prev);w.to=nb.length?nb[(Math.random()*nb.length)|0]:prev;w.t=0;
+        const end=NODES[w.from].end;if(end!==undefined){w.pause=2+Math.random()*2.5;h.goal=end;}else if(Math.random()<.22){w.pause=1.2+Math.random()*2;if(Math.random()<.5)h.wave=1.2;}}}
+    const s=walkerAt(w),k=Math.min(1,dt*6);p.x+=(s.x-p.x)*k;p.z+=(s.z-p.z)*k;p.y=groundAt(p.x,p.z);}
+  h.yaw=angLerp(h.yaw,h.goal,Math.min(1,dt*6));h.root.rotation.y=h.yaw;});}
+
 /* ---------- camera rig ---------- */
 const OVER={tx:0,ty:1,tz:0,dist:58,az:-0.6,el:0.62,ox:0,oy:0};
 const rig={...OVER},goal={...OVER};let tweening=false,dragging=false,focus=-1;
@@ -303,7 +450,7 @@ const HALL={x:0,z:1.2,a:Math.PI/2,p:{name:"광주 서구청",color:"#1f3a5f"},ri
 const pins=ZONES.map((z,i)=>{const b=document.createElement("button");b.className="pin";b.type="button";b.innerHTML=`<i style="background:${z.p.color}">${i+1}</i>${z.p.name}`;b.onclick=()=>openZone(i);$("pins").appendChild(b);return b;});
 const hallPin=document.createElement("button");hallPin.className="pin";hallPin.type="button";hallPin.innerHTML='<i style="background:#1f3a5f">★</i>광주 서구청';hallPin.onclick=()=>openZone(4);$("pins").appendChild(hallPin);pins.push(hallPin);
 const tmp=new THREE.Vector3();
-function updatePins(){[...ZONES,HALL].forEach((z,i)=>{tmp.set(z.x,z.top||6.4,z.z).project(camera);const vis=tmp.z<1;const b=pins[i],half=(b.offsetWidth||120)/2+8,px=Math.max(half,Math.min(innerWidth-half,(tmp.x*0.5+0.5)*innerWidth));b.style.transform=`translate(${px}px,${(-tmp.y*0.5+0.5)*innerHeight}px) translate(-50%,-100%)`;b.classList.toggle("hidden",!vis);b.classList.toggle("dim",focus>=0&&focus!==i);if(focus>=0&&focus!==i&&innerWidth<760)b.classList.add("hidden");});}
+function updatePins(){[...ZONES,HALL].forEach((z,i)=>{tmp.set(z.x,z.top||6.4,z.z).project(camera);const vis=tmp.z<1&&(!walking||(Math.abs(tmp.x)<1.05&&(-tmp.y*0.5+0.5)*innerHeight>110));const b=pins[i],half=(b.offsetWidth||120)/2+8,px=Math.max(half,Math.min(innerWidth-half,(tmp.x*0.5+0.5)*innerWidth));b.style.transform=`translate(${px}px,${(-tmp.y*0.5+0.5)*innerHeight}px) translate(-50%,-100%)`;b.classList.toggle("hidden",!vis);b.classList.toggle("dim",focus>=0&&focus!==i);if(focus>=0&&focus!==i&&innerWidth<760)b.classList.add("hidden");});}
 
 /* ---------- card ---------- */
 function fillCard(i){
@@ -320,8 +467,8 @@ function fillCard(i){
 }
 /* ---------- install guide & copy ---------- */
 const ua=navigator.userAgent,isIOS=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),inApp=/KAKAOTALK|NAVER|Instagram|FBAN|FBAV|Line\//i.test(ua);
-function installGuide(){
-  const p=PROJECTS[focus];if(!p)return;
+function installGuide(i){
+  const p=PROJECTS[i===undefined?focus:i];if(!p)return;
   const steps=isIOS?[["사파리로 열기","아래 '바로 열기'를 누르고, 사파리에서 열어요"],["공유 버튼 누르기","화면 아래 네모 위로 화살표 모양 버튼"],["'홈 화면에 추가'","목록을 내려서 누르면 앱 아이콘이 생겨요"]]
     :[["크롬·삼성인터넷으로 열기","아래 '바로 열기'를 눌러 열어요"],["⋮ 메뉴 누르기","오른쪽 위 점 세 개(삼성인터넷은 아래 ≡)"],["'앱 설치' 또는 '홈 화면에 추가'","누르면 앱 아이콘이 생겨요"]];
   $("gTitle").textContent=`${p.name} 설치하기`;
@@ -336,7 +483,7 @@ async function copyLink(){
   catch(e){const t=document.createElement("textarea");t.value=p.url;document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand("copy")}catch(_){}t.remove();toast(ok?"링크를 복사했어요":p.url);}
 }
 let toastT=0;function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200);}
-$("cInstall").onclick=installGuide;$("cCopy").onclick=copyLink;$("gClose").onclick=()=>$("guide").hidden=true;
+$("cInstall").onclick=()=>installGuide(focus);$("cCopy").onclick=copyLink;$("gClose").onclick=()=>$("guide").hidden=true;
 $("guide").onclick=e=>{if(e.target.id==="guide")$("guide").hidden=true;};
 function fillHallCard(){
   const card=$("card");card.classList.add("news-mode");card.style.setProperty("--accent","#1f3a5f");
@@ -347,7 +494,7 @@ function fillHallCard(){
   const go=$("cGo");go.href="https://www.seogu.gwangju.kr/";go.textContent="서구청 누리집 ↗";go.classList.remove("off");
 }
 function openZone(i){
-  focus=i;fillCard(i);$("card").classList.add("open");$("card").setAttribute("aria-hidden","false");$("hint").style.opacity=0;
+  focus=i;fillCard(i);$("enterBtn").hidden=true;$("card").classList.add("open");$("card").setAttribute("aria-hidden","false");$("hint").style.opacity=0;
   const z=i===4?HALL:ZONES[i],wide=innerWidth>=760,narrow=innerWidth/innerHeight<0.8,card=$("card");
   // shift the picture so the zone sits in the free area beside/above the card
   const ox=wide?(card.offsetWidth+20)/2:0,oy=wide?0:Math.min(card.offsetHeight,innerHeight*0.62)/2-10;
@@ -355,52 +502,165 @@ function openZone(i){
   ZONES.forEach((zz,k)=>zz.ring.material.opacity=k===i?0.9:0);if(i===4)Object.assign(goal,{tx:0,ty:3.4,tz:0,az:0.15,el:0.32,dist:innerWidth/innerHeight<0.8?30:22});
   startTween();
 }
-function closeCard(){focus=-1;$("card").classList.remove("open");$("card").setAttribute("aria-hidden","true");Object.assign(goal,OVER,{az:rig.az,dist:fitDist()});ZONES.forEach(z=>z.ring.material.opacity=0);startTween();}
+function closeCard(){focus=-1;$("enterBtn").hidden=walking;$("card").classList.remove("open");$("card").setAttribute("aria-hidden","true");Object.assign(goal,OVER,{az:rig.az,dist:fitDist()});ZONES.forEach(z=>z.ring.material.opacity=0);startTween();}
 $("cClose").onclick=closeCard;
 $("cPrev").onclick=()=>openZone((focus+4)%5);$("cNext").onclick=()=>openZone((focus+1)%5);
 
 /* ---------- list view ---------- */
 $("listGrid").innerHTML=PROJECTS.map((p,i)=>`<button class="lcard" type="button" data-i="${i}"><i style="background:${p.color}">${i+1}</i><div><b>${p.name}</b><small>${p.one}</small></div></button>`).join("");
 $("listGrid").onclick=e=>{const b=e.target.closest(".lcard");if(!b)return;toggleList(false);openZone(+b.dataset.i);};
-function toggleList(show){$("list").hidden=!show;$("viewBtn").textContent=show?"섬으로 보기":"목록으로 보기";if(!show)requestRender();}
-$("viewBtn").onclick=()=>toggleList($("list").hidden);
+function toggleList(show){$("list").hidden=!show;$("enterBtn").hidden=show||walking||focus>=0;$("viewBtn").textContent=show?"섬으로 보기":"목록으로 보기";if(!show)requestRender();}
+$("viewBtn").onclick=()=>walking?exitWalk():toggleList($("list").hidden);
 
-/* ---------- input: drag to orbit, pinch/wheel to zoom, tap to pick ---------- */
+/* ---------- 걷기 모드 ---------- */
+let walking=false,talkNpc=-1,nearNpc=-1,typeT=0;
+const touchUI=matchMedia("(pointer:coarse)").matches||navigator.maxTouchPoints>0;
+const WC={yaw:0,pitch:.34,dist:6.5,pos:new THREE.Vector3(),look:new THREE.Vector3(),fast:0},camGoal=new THREE.Vector3(),camLook=new THREE.Vector3(),camDir=new THREE.Vector3();
+const keys={},stick={x:0,y:0};
+let hintT=0;function showHint(text,ms){const h=$("hint");h.textContent=text;h.style.opacity=1;clearTimeout(hintT);hintT=setTimeout(()=>h.style.opacity=0,ms||5000);}
+function enterWalk(){
+  if(walking)return;if(focus>=0)closeCard();if(!$("list").hidden)toggleList(false);
+  walking=true;document.body.classList.add("walking");if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  WC.pos.copy(camera.position);WC.look.set(rig.tx,rig.ty,rig.tz);WC.yaw=player.yaw+Math.PI;WC.pitch=.34;WC.fast=0;camera.clearViewOffset();
+  $("viewBtn").textContent="↩ 하늘에서 보기";$("enterBtn").hidden=true;$("walkUi").hidden=false;$("stick").hidden=!touchUI;nearNpc=-1;
+  showHint(touchUI?"왼쪽 동그라미로 걷고, 화면을 끌어 둘러보세요":"WASD·방향키로 걷고, 마우스로 끌어 둘러보세요");requestRender();
+}
+function exitWalk(){
+  if(!walking)return;closeTalk();walking=false;document.body.classList.remove("walking");
+  const d=camera.position.clone().sub(WC.look),L=d.length()||1;
+  Object.assign(rig,{tx:WC.look.x,ty:WC.look.y,tz:WC.look.z,dist:L,az:Math.atan2(d.x,d.z),el:Math.asin(clamp(d.y/L,-1,1)),ox:0,oy:0});
+  Object.assign(goal,OVER,{az:rig.az,dist:fitDist()});
+  P.vx=P.vz=0;player.v=0;for(const k in keys)keys[k]=false;resetStick();
+  $("viewBtn").textContent="목록으로 보기";$("walkUi").hidden=true;$("talkBtn").hidden=true;$("enterBtn").hidden=false;startTween();
+}
+$("enterBtn").onclick=enterWalk;
+function updatePlayer(dt){
+  let ix=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+stick.x,iy=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)+stick.y;
+  if(talkNpc>=0||!$("guide").hidden)ix=iy=0;
+  const m=Math.hypot(ix,iy);if(m>1){ix/=m;iy/=m;}
+  const sy=Math.sin(WC.yaw),cy=Math.cos(WC.yaw),mx=-sy*iy+cy*ix,mz=-cy*iy-sy*ix,SPEED=3.6,k=Math.min(1,dt*10);
+  P.vx+=(mx*SPEED-P.vx)*k;P.vz+=(mz*SPEED-P.vz)*k;
+  const q={x:P.x+P.vx*dt,z:P.z+P.vz*dt};collide(q,.4);
+  [...NPCS.map(n=>n.h),...walkers.map(w=>w.h)].forEach(h=>{const o=h.root.position,dx=q.x-o.x,dz=q.z-o.z,d=Math.hypot(dx,dz);if(d<.75&&d>1e-4){q.x=o.x+dx/d*.75;q.z=o.z+dz/d*.75;}});
+  P.vx=(q.x-P.x)/dt;P.vz=(q.z-P.z)/dt;P.x=q.x;P.z=q.z;
+  player.root.position.set(P.x,groundAt(P.x,P.z),P.z);player.v=Math.hypot(P.vx,P.vz);
+  if(m>.08)player.yaw=angLerp(player.yaw,Math.atan2(mx,mz),Math.min(1,dt*12));player.root.rotation.y=player.yaw;
+  // 가장 가까운 안내 해온이
+  let best=-1,bd=2.6;NPCS.forEach(n=>{const d=Math.hypot(P.x-n.x,P.z-n.z);if(d<bd){bd=d;best=n.i;}});
+  if(best!==nearNpc){nearNpc=best;if(best>=0&&talkNpc<0)NPCS[best].h.wave=1.3;}
+  $("talkBtn").hidden=nearNpc<0||talkNpc>=0;
+}
+function updateWalkCam(dt){
+  WC.fast=Math.min(1,WC.fast+dt*.7);
+  camLook.set(P.x,player.root.position.y+1.15,P.z);
+  const cp=Math.cos(WC.pitch);camDir.set(Math.sin(WC.yaw)*cp,Math.sin(WC.pitch),Math.cos(WC.yaw)*cp);
+  let d=WC.dist;for(let s=.8;s<=WC.dist;s+=.3){if(camBlocked(camLook.x+camDir.x*s,camLook.y+camDir.y*s,camLook.z+camDir.z*s)){d=Math.max(1.4,s-.4);break;}}
+  const k=1-Math.exp(-dt*(1.6+WC.fast*8));
+  WC.pos.lerp(camGoal.copy(camLook).addScaledVector(camDir,d),k);WC.look.lerp(camLook,k);
+  camera.position.copy(WC.pos);camera.lookAt(WC.look);
+}
+function updateNpcs(dt,s){NPCS.forEach(n=>{const h=n.h,d=Math.hypot(P.x-n.x,P.z-n.z),g=walking&&d<4.5?Math.atan2(P.x-n.x,P.z-n.z):h.home;
+  h.yaw=angLerp(h.yaw,g,Math.min(1,dt*5));h.root.rotation.y=h.yaw;h.bubble.visible=walking&&talkNpc!==n.i;h.bubble.position.y=1.95+Math.sin(s*3+n.i)*.05;});}
+
+/* ---------- 대화 ---------- */
+function talkContent(i,step){
+  const bye={k:"bye",l:"고마워요, 안녕!"};
+  if(i===4){
+    const ask=[{k:"news",l:"오늘 서구 소식은요?"},{k:"island",l:"이 섬은 뭐예요?"}].filter(o=>o.k!==step);
+    if(step==="news"){const items=(NEWS.items||[]).slice(0,2);
+      return {msg:items.length?"오늘 여러 언론이 많이 다룬 서구 소식이에요. 구청 현수막에도 걸어뒀어요!":"오늘 소식을 아직 못 가져왔어요. 조금 뒤에 다시 물어봐 주세요.",
+        opts:[...items.map((n,k)=>({href:n.url,l:`${k+1}. ${n.short||n.title} ↗`,cls:"wide"})),...ask,bye]};}
+    return {msg:step==="island"?"서구청 직원이 일하면서 만든 생활 도구 4곳을 모아둔 섬이에요. 길 끝 건물 앞에 서 있는 해온이들에게 말을 걸면 하나씩 알려줘요.":"광주 서구청에 오신 걸 환영해요! 섬 안내를 맡은 안내 해온이예요. 뭐부터 알려드릴까요?",
+      opts:[...ask,{href:"https://www.seogu.gwangju.kr/",l:"서구청 누리집 ↗"},bye]};
+  }
+  const p=PROJECTS[i],ask=[{k:"what",l:"이건 뭐예요?"},{k:"who",l:"누가 쓰나요?"},{k:"install",l:"폰에 어떻게 깔아요?"}].filter(o=>o.k!==step);
+  if(step==="install")return {msg:"먼저 '바로 열기'로 연 다음, 홈 화면에 추가하면 앱처럼 쓸 수 있어요. 아래 버튼을 누르면 쓰고 계신 폰에 맞게 알려드릴게요.",opts:[{k:"guide",l:"📲 내 폰 설치 방법",cls:"main"},...ask,bye]};
+  return {msg:step==="hi"?p.talk.hi:p.talk[step],opts:[{href:p.url,l:"바로 열어볼래요 ↗",cls:"main"},...ask,bye]};
+}
+function openTalk(i){
+  talkNpc=i;const n=NPCS[i];n.h.wave=1.3;P.vx=P.vz=0;
+  $("talk").style.setProperty("--accent",n.color);$("tImg").src=HAEON[i<4?PROJECTS[i].pose:"wave"];$("tName").textContent=n.name;$("tRole").textContent=i<4?PROJECTS[i].name:"광주 서구청";
+  $("talk").hidden=false;$("talkBtn").hidden=true;$("walkUi").hidden=true;talkTo("hi");
+}
+function closeTalk(){clearInterval(typeT);talkNpc=-1;$("talk").hidden=true;if(walking){$("walkUi").hidden=false;resetStick();}}
+function talkTo(step){
+  const r=talkContent(talkNpc,step);
+  $("tOpts").innerHTML=r.opts.map(o=>o.href?`<a href="${o.href}" target="_blank" rel="noopener" class="${o.cls||""}">${esc(o.l)}</a>`:`<button type="button" data-k="${o.k}" class="${o.cls||""}">${esc(o.l)}</button>`).join("");
+  typeMsg(r.msg);
+}
+function esc(v){return String(v).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function typeMsg(text){const el=$("tMsg");clearInterval(typeT);if(reduce){el.textContent=text;return;}let n=0;el.textContent="";typeT=setInterval(()=>{n+=2;el.textContent=text.slice(0,n);if(n>=text.length)clearInterval(typeT);},28);el.onclick=()=>{clearInterval(typeT);el.textContent=text;};}
+$("tOpts").onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=b.dataset.k;if(k==="bye")return closeTalk();if(k==="guide")return installGuide(talkNpc);talkTo(k);};
+$("tClose").onclick=closeTalk;
+$("talkBtn").onclick=()=>{if(nearNpc>=0)openTalk(nearNpc);};
+
+/* ---------- 조이스틱 ---------- */
+const stickEl=$("stick"),knob=$("knob");let stickId=null;
+function resetStick(){stickId=null;stick.x=stick.y=0;knob.style.transform="";}
+function moveStick(e){const r=stickEl.getBoundingClientRect(),R=r.width/2-12;let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);const d=Math.hypot(dx,dy);if(d>R){dx*=R/d;dy*=R/d;}knob.style.transform=`translate(${dx}px,${dy}px)`;stick.x=dx/R;stick.y=-dy/R;}
+stickEl.addEventListener("pointerdown",e=>{e.preventDefault();stickId=e.pointerId;try{stickEl.setPointerCapture(e.pointerId)}catch(_){}moveStick(e);$("hint").style.opacity=0;});
+stickEl.addEventListener("pointermove",e=>{if(e.pointerId===stickId)moveStick(e);});
+["pointerup","pointercancel","lostpointercapture"].forEach(t=>stickEl.addEventListener(t,e=>{if(e.pointerId===stickId)resetStick();}));
+
+/* ---------- input: drag to orbit (or look around while walking), pinch/wheel to zoom, tap to pick ---------- */
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 let down=null,pointers=new Map(),pinch0=0;
 const cv=renderer.domElement;
-cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});if(pointers.size===1)down={x:e.clientX,y:e.clientY,az:goal.az,el:goal.el,t:performance.now()};if(pointers.size===2){const [a,b]=[...pointers.values()];pinch0=Math.hypot(a.x-b.x,a.y-b.y)/goal.dist;}});
+cv.addEventListener("pointerdown",e=>{try{cv.setPointerCapture(e.pointerId)}catch(_){}pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===1)down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,az:goal.az,el:goal.el,t:performance.now()};
+  if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;pinch0=walking?span*WC.dist:span/goal.dist;}});
 cv.addEventListener("pointermove",e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(pointers.size===2){const [a,b]=[...pointers.values()];goal.dist=clamp(Math.hypot(a.x-b.x,a.y-b.y)/pinch0,18,95);startTween(true);return;}
+  if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;if(walking)WC.dist=clamp(pinch0/span,3.5,12);else{goal.dist=clamp(span/pinch0,18,95);startTween(true);}return;}
   if(!down)return;const dx=e.clientX-down.x,dy=e.clientY-down.y;if(Math.hypot(dx,dy)>4){dragging=true;$("stage").classList.add("dragging");$("hint").style.opacity=0;}
-  if(dragging){goal.az=down.az-dx*0.006;goal.el=clamp(down.el+dy*0.004,0.22,1.25);startTween(true);}});
+  if(!dragging)return;
+  if(walking){WC.yaw-=(e.clientX-down.lx)*.008;WC.pitch=clamp(WC.pitch+(e.clientY-down.ly)*.005,.06,1.1);down.lx=e.clientX;down.ly=e.clientY;}
+  else{goal.az=down.az-dx*0.006;goal.el=clamp(down.el+dy*0.004,0.22,1.25);startTween(true);}});
 function up(e){pointers.delete(e.pointerId);$("stage").classList.remove("dragging");if(down&&!dragging&&performance.now()-down.t<400)pick(e.clientX,e.clientY);if(pointers.size===0){down=null;dragging=false;}}
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
-cv.addEventListener("wheel",e=>{e.preventDefault();goal.dist=clamp(goal.dist*(1+Math.sign(e.deltaY)*0.08),18,95);startTween(true);},{passive:false});
-function pick(x,y){ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);ray.setFromCamera(ndc,camera);const hit=ray.intersectObjects([...ZONES.map(z=>z.group),hall],true)[0];if(hit&&hit.object.userData.zone!==undefined)openZone(hit.object.userData.zone);else if(focus>=0)closeCard();}
-addEventListener("keydown",e=>{if(e.key==="Escape"&&focus>=0)closeCard();if(e.key==="ArrowRight"&&focus>=0)openZone((focus+1)%5);if(e.key==="ArrowLeft"&&focus>=0)openZone((focus+4)%5);});
+cv.addEventListener("wheel",e=>{e.preventDefault();if(walking){WC.dist=clamp(WC.dist*(1+Math.sign(e.deltaY)*0.1),3.5,12);return;}goal.dist=clamp(goal.dist*(1+Math.sign(e.deltaY)*0.08),18,95);startTween(true);},{passive:false});
+function pick(x,y){
+  ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);ray.setFromCamera(ndc,camera);
+  if(walking){if(talkNpc>=0)return;const hit=ray.intersectObjects(NPCS.map(n=>n.h.root),true)[0];if(!hit)return;let o=hit.object;while(o&&o.userData.npc===undefined)o=o.parent;if(!o)return;
+    const n=NPCS[o.userData.npc];if(Math.hypot(P.x-n.x,P.z-n.z)<4)openTalk(n.i);else toast(`${n.name}에게 조금 더 가까이 가 보세요`);return;}
+  const hit=ray.intersectObjects([...ZONES.map(z=>z.group),hall],true)[0];if(hit&&hit.object.userData.zone!==undefined)openZone(hit.object.userData.zone);else if(focus>=0)closeCard();
+}
+const MOVE_KEYS=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
+addEventListener("keydown",e=>{
+  if(walking){
+    if(e.key==="Escape"){if(!$("guide").hidden)$("guide").hidden=true;else if(talkNpc>=0)closeTalk();return;}
+    if(talkNpc>=0||/INPUT|TEXTAREA/.test(e.target.tagName))return;
+    if(MOVE_KEYS.includes(e.code)){keys[e.code]=true;e.preventDefault();$("hint").style.opacity=0;}
+    if((e.code==="KeyE"||e.code==="Space"||e.code==="Enter")&&nearNpc>=0){e.preventDefault();openTalk(nearNpc);}
+    return;}
+  if(e.key==="Escape"&&focus>=0)closeCard();if(e.key==="ArrowRight"&&focus>=0)openZone((focus+1)%5);if(e.key==="ArrowLeft"&&focus>=0)openZone((focus+4)%5);});
+addEventListener("keyup",e=>{keys[e.code]=false;});
+addEventListener("blur",()=>{for(const k in keys)keys[k]=false;resetStick();});
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
-/* ---------- render loop: runs only while something moves ---------- */
-let rafId=0,lastIdle=0,idleUntil=0;
+/* ---------- render loop: runs every frame while walking, otherwise only while something moves ---------- */
+let rafId=0,lastIdle=0,idleUntil=0,lastT=0;
 function requestRender(){if(!rafId)rafId=requestAnimationFrame(frame);}
 function startTween(fast){tweening=true;idleUntil=performance.now()+(fast?400:1600);requestRender();}
 function frame(t){
-  rafId=0;
-  const k=dragging||pointers.size>1?0.35:0.09;let moving=false;
-  for(const key of ["tx","ty","tz","dist","az","el","ox","oy"]){const d=goal[key]-rig[key];if(Math.abs(d)>1e-4){rig[key]+=d*k;moving=true;}else rig[key]=goal[key];}
-  placeCamera();
-  // gentle ambient life (Haeon bob, clouds, bells, boat) — skipped for reduced motion
-  if(!reduce){const s=t/1000;haeon.position.y=2.7+Math.sin(s*2.2)*0.12;clouds.forEach((c,i)=>{c.position.x+=0.01;if(c.position.x>60)c.position.x=-60;});boat.position.y=-0.3+Math.sin(s*1.4)*0.08;boat.rotation.z=Math.sin(s*1.1)*0.04;
+  rafId=0;const dt=Math.min(.05,lastT?(t-lastT)/1000:.016),s=t/1000;lastT=t;let moving=false;
+  if(walking){updatePlayer(dt);updateWalkCam(dt);}
+  else{const k=dragging||pointers.size>1?0.35:0.09;
+    for(const key of ["tx","ty","tz","dist","az","el","ox","oy"]){const d=goal[key]-rig[key];if(Math.abs(d)>1e-4){rig[key]+=d*k;moving=true;}else rig[key]=goal[key];}
+    placeCamera();}
+  const fov=walking?55:40;if(Math.abs(camera.fov-fov)>.05){camera.fov+=(fov-camera.fov)*Math.min(1,dt*4);camera.updateProjectionMatrix();moving=true;}
+  // gentle ambient life (walkers, clouds, bells, boat) — skipped for reduced motion
+  if(!reduce){updateWalkers(dt);clouds.forEach(c=>{c.position.x+=0.01;if(c.position.x>60)c.position.x=-60;});boat.position.y=-0.3+Math.sin(s*1.4)*0.08;boat.rotation.z=Math.sin(s*1.1)*0.04;
     ZONES[3].group.userData.glows.forEach((h,i)=>{h.material.opacity=0.35+0.45*(0.5+0.5*Math.sin(s*3+i));});const sp=ZONES[2].group.userData.spin;if(sp)sp.rotation.y=s*0.8;foam.material.opacity=0.4+0.15*Math.sin(s*1.3);}
+  updateNpcs(dt,s);animHaeon(player,dt,s);NPCS.forEach(n=>animHaeon(n.h,dt,s));walkers.forEach(w=>animHaeon(w.h,dt,s));
   renderer.render(scene,camera);updatePins();
+  if(walking){requestRender();return;}
   const now=performance.now();
   if(moving||dragging||now<idleUntil){requestRender();return;}
   // idle: keep ambient motion at ~20fps, pause when hidden
   if(!reduce&&!document.hidden&&$("list").hidden){clearTimeout(lastIdle);lastIdle=setTimeout(requestRender,50);}
 }
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)requestRender();});
-addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(focus<0){goal.dist=fitDist();}startTween();});
+addEventListener("resize",()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);if(focus<0&&!walking){goal.dist=fitDist();}startTween();});
 
 /* ---------- daily news for the banners ---------- */
 function applyNews(){banners.forEach((m,k)=>{const old=m.material.map;m.material.map=bannerTex((NEWS.items||[])[k],k);m.material.needsUpdate=true;if(old)old.dispose();});if(focus===4)fillHallCard();requestRender();}
