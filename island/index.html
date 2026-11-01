@@ -262,62 +262,67 @@ function bannerTex(item,k){const st=BANNER_STYLE[k];return canvasTex(1024,128,(x
 const banners=[0,1].map(k=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(6.4,0.8),new THREE.MeshBasicMaterial({map:bannerTex(null,k)}));m.position.set(0,5.4-k*1.1,0.16);m.userData.zone=4;hall.add(m);
   [-3.25,3.25].forEach(x=>box(0.06,0.06,0.06,0x555555,x,5.4-k*1.1+0.36,0.17,hall));return m;});
 hall.traverse(o=>{if(o.isMesh)o.userData.zone=4;});
-/* ---------- 3D 해온이: 부위를 한 덩어리로 합쳐서 가볍게 그립니다 ---------- */
-const HG={s:new THREE.SphereGeometry(1,18,14),lo:new THREE.SphereGeometry(1,10,8),cone:new THREE.ConeGeometry(1,1,7),cyl:new THREE.CylinderGeometry(1,1,1,12),box:new THREE.BoxGeometry(1,1,1),tor:new THREE.TorusGeometry(1,.26,8,20),
-  bot:new THREE.SphereGeometry(1,18,8,0,Math.PI*2,Math.PI/2,Math.PI/2),cap:new THREE.SphereGeometry(1,18,8,0,Math.PI*2,0,Math.PI*.42)};
-const HC={cream:0xf6eedf,beak:0xe08d4b,beak2:0xc9733a,mouth:0x8e3427,eye:0x2a1c15,cheek:0xf3a184,feet:0xd67a3c,white:0xffffff};
-const HMAT=new THREE.MeshLambertMaterial({vertexColors:true}),Z3=new THREE.Vector3(0,0,1);
-function T(x,y,z,sx,sy,sz,rx,ry,rz){return new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),new THREE.Vector3(sx,sy===undefined?sx:sy,sz===undefined?sx:sz));}
-// 머리(타원구) 표면에 납작하게 붙는 부위: 눈, 볼
-function onHead(x,y,sx,sy,sz){const dy=y-1,z=.47*Math.sqrt(Math.max(0,1-(x/.5)**2-(dy/.54)**2)),n=new THREE.Vector3(x/.25,dy/.2916,z/.2209).normalize();
-  return {z,m:new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromUnitVectors(Z3,n),new THREE.Vector3(sx,sy,sz))};}
+/* ---------- 블록 해온이(마인크래프트 느낌): 네모 블록과 픽셀 얼굴, 부위를 한 덩어리로 합쳐 가볍게 그립니다 ---------- */
+const HG={box:new THREE.BoxGeometry(1,1,1)};
+const HC={cream:0xf6eedf,cream2:0xe9dcc4,beak:0xf08a3c,beak2:0xc9652a,mouth:0x8e3427,eye:0x2a1c15,cheek:0xf3a184,feet:0xe07a2e,white:0xffffff};
+const HMAT=new THREE.MeshLambertMaterial({vertexColors:true});
+const PX=.075;
+function T(x,y,z,sx,sy,sz){return new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion(),new THREE.Vector3(sx,sy===undefined?sx:sy,sz===undefined?sx:sz));}
+// 픽셀 단위 블록: 가운데 x, 아래쪽 y, 가운데 z, 너비·높이·깊이 (모두 픽셀)
+function vox(c,x,y,z,w,h,d){return [HG.box,c,T(x*PX,(y+h/2)*PX,z*PX,w*PX,h*PX,d*PX)];}
 function merged(parts){
   let n=0;const list=parts.map(([g,c,m])=>{const k=g.index?g.toNonIndexed():g.clone();k.applyMatrix4(m);n+=k.attributes.position.count;return [k,new THREE.Color(c)];});
   const pos=new Float32Array(n*3),nor=new Float32Array(n*3),col=new Float32Array(n*3);let o=0;
   list.forEach(([k,c])=>{const cnt=k.attributes.position.count;pos.set(k.attributes.position.array,o*3);nor.set(k.attributes.normal.array,o*3);for(let i=0;i<cnt;i++){col[(o+i)*3]=c.r;col[(o+i)*3+1]=c.g;col[(o+i)*3+2]=c.b;}o+=cnt;k.dispose();});
   const g=new THREE.BufferGeometry();g.setAttribute("position",new THREE.BufferAttribute(pos,3));g.setAttribute("normal",new THREE.BufferAttribute(nor,3));g.setAttribute("color",new THREE.BufferAttribute(col,3));g.computeBoundingSphere();return g;
 }
+// 몸 비율(픽셀): 발 1, 다리 3, 몸통 6, 머리 9 / 머리 10칸 너비
+const HIP=4,SHOULDER=9.5,NECK=10,FACE=4.5;
 function haeonParts(o){
   const top=o.top,sl=o.sleeve||top,pants=o.pants||0x3d4a5c;
-  const P=[[HG.s,HC.cream,T(0,1,0,.5,.54,.47)],[HG.s,top,T(0,.42,0,.34,.36,.31)]];
-  if(o.cap!==undefined)P.push([HG.cap,o.cap,T(0,1,-.01,.52,.57,.5)],[HG.lo,o.cap,T(0,1.17,.43,.23,.03,.18,.12,0,0)]);
-  else P.push([HG.cone,HC.cream,T(0,1.6,-.03,.07,.2,.07)],[HG.cone,HC.cream,T(-.09,1.56,-.02,.055,.16,.055,0,0,.55)],[HG.cone,HC.cream,T(.09,1.56,-.02,.055,.16,.055,0,0,-.55)]);
-  [-1,1].forEach(s=>{const e=onHead(s*.18,1.05,.095,.115,.06);P.push([HG.s,HC.eye,e.m],[HG.lo,HC.white,T(s*.18+.035,1.09,e.z+.04,.032)],[HG.lo,HC.cheek,onHead(s*.31,.92,.085,.065,.02).m]);});
-  P.push([HG.s,HC.mouth,T(0,.905,.43,.1,.06,.08)],[HG.s,HC.beak,T(0,.955,.47,.17,.07,.13,-.12,0,0)],[HG.s,HC.beak2,T(0,.86,.45,.13,.055,.1,.15,0,0)]);
-  const x=o.extra;
-  if(x==="scarf")P.push([HG.tor,o.scarf||HC.white,T(0,.72,0,.27,.27,.27,Math.PI/2,0,0)],[HG.box,o.scarf||HC.white,T(.13,.55,.28,.08,.18,.04,0,0,.2)]);
-  if(x==="apron")P.push([HG.box,0x8a5a3c,T(0,.36,.3,.42,.4,.03)],[HG.box,0x8a5a3c,T(0,.62,.26,.2,.12,.03)]);
-  if(x==="suit")P.push([HG.box,HC.white,T(0,.63,.255,.12,.12,.03,0,0,Math.PI/4)],[HG.box,0xc23b3b,T(0,.53,.3,.05,.16,.025)]);
-  if(x==="overall")P.push([HG.bot,0x2e3f63,T(0,.42,0,.35,.37,.32)],[HG.box,0x2e3f63,T(0,.55,.29,.22,.18,.03)]);
-  if(x==="stripe")P.push([HG.cyl,0xfff1a8,T(0,.4,0,.35,.06,.32)]);
-  if(x==="collar")P.push([HG.tor,HC.white,T(0,.73,0,.2,.2,.2,Math.PI/2,0,0)]);
-  const arm=()=>[[HG.lo,sl,T(0,-.12,0,.11,.17,.11)],[HG.lo,HC.cream,T(0,-.29,.02,.1,.12,.085)]];
-  const leg=()=>[[HG.cyl,pants,T(0,-.06,0,.065,.12,.065)],[HG.lo,HC.feet,T(0,-.16,.07,.1,.045,.15)]];
+  const P=[vox(top,0,HIP,0,8,6,5),vox(HC.cream,0,NECK,0,10,9,9)];
+  // 머리 위 깃털 또는 모자
+  if(o.cap!==undefined)P.push(vox(o.cap,0,NECK+7,0,10.4,2.6,9.4),vox(o.cap,0,NECK+7,FACE+1.2,8,.8,3));
+  else P.push(vox(HC.cream,0,NECK+9,-.5,1.2,2.4,1.2),vox(HC.cream,-1.4,NECK+9,-.5,1,1.6,1),vox(HC.cream,1.4,NECK+9,-.5,1,1.6,1));
+  // 얼굴: 눈(2×2, 반짝이 1칸), 볼, 부리
+  [-1,1].forEach(s=>{P.push(vox(HC.eye,s*2.2,NECK+4,FACE,2,2.4,.3),vox(HC.white,s*2.2+.5,NECK+5.4,FACE+.2,.8,.8,.2),vox(HC.cheek,s*3.6,NECK+2.4,FACE,1.6,1,.2));});
+  P.push(vox(HC.beak,0,NECK+2.6,FACE+.9,4,1,2),vox(HC.mouth,0,NECK+1.9,FACE+.4,2.6,.8,1.2),vox(HC.beak2,0,NECK+1.2,FACE+.7,3,.8,1.6));
+  const x=o.extra,F=2.6;// 몸통 앞면
+  if(x==="scarf")P.push(vox(o.scarf||HC.white,0,NECK-1.4,0,8.6,1.4,5.6),vox(o.scarf||HC.white,1.8,HIP+1.4,F,1.6,3.2,.4));
+  if(x==="apron")P.push(vox(0x8a5a3c,0,HIP+.2,F,6,4.6,.3),vox(0x8a5a3c,0,HIP+4.8,F,3,1,.3));
+  if(x==="suit")P.push(vox(HC.white,0,HIP+3.6,F,2.4,2.4,.25),vox(0xc23b3b,0,HIP+1.6,F+.1,1,3.6,.25));
+  if(x==="overall")P.push(vox(0x2e3f63,0,HIP,0,8.3,3,5.3),vox(0x2e3f63,0,HIP+3,F,4.4,2,.3),vox(0xf5c84c,-1.6,HIP+4.3,F+.15,.6,.6,.2),vox(0xf5c84c,1.6,HIP+4.3,F+.15,.6,.6,.2));
+  if(x==="stripe")P.push(vox(0xfff1a8,0,HIP+2,0,8.3,1,5.3));
+  if(x==="collar")P.push(vox(HC.white,0,NECK-1,0,8.3,1,5.3));
+  const arm=()=>[vox(sl,0,-4.4,0,2.6,4.4,2.6),vox(HC.cream,0,-6,0,2.4,1.6,2.4)];
+  const leg=()=>[vox(pants,0,-HIP+1,0,3,3,3),vox(HC.feet,0,-HIP,.6,3.2,1,4.2)];
   return {P,arm,leg,sl,pants};
 }
+const ARM_X=5.3*PX,LEG_X=2*PX;
 const geoCache={};function cached(key,fn){return geoCache[key]||(geoCache[key]=fn());}
 const SHADOW_G=new THREE.CircleGeometry(.42,18),SHADOW_M=new THREE.MeshBasicMaterial({color:0x1d3b2a,transparent:true,opacity:.18,depthWrite:false});
 // 움직이는 해온이: 몸통 1 + 팔 2 + 다리 2 덩어리
 function makeHaeon(o,scale){
   const {P,arm,leg,sl,pants}=haeonParts(o),root=new THREE.Group(),inner=new THREE.Group();root.add(inner);
   inner.add(new THREE.Mesh(merged(P),HMAT));
-  const arms=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.29,.62,0);p.rotation.z=s*.38;p.add(new THREE.Mesh(cached("a"+sl,()=>merged(arm())),HMAT));inner.add(p);return p;});
-  const legs=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*.13,.2,0);p.add(new THREE.Mesh(cached("l"+pants,()=>merged(leg())),HMAT));inner.add(p);return p;});
+  const arms=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*ARM_X,SHOULDER*PX,0);p.rotation.z=s*ARM_REST;p.add(new THREE.Mesh(cached("a"+sl,()=>merged(arm())),HMAT));inner.add(p);return p;});
+  const legs=[-1,1].map(s=>{const p=new THREE.Group();p.position.set(s*LEG_X,HIP*PX,0);p.add(new THREE.Mesh(cached("l"+pants,()=>merged(leg())),HMAT));inner.add(p);return p;});
   const sh=new THREE.Mesh(SHADOW_G,SHADOW_M);sh.rotation.x=-Math.PI/2;sh.position.y=.03;root.add(sh);
   root.scale.setScalar(scale||1);
   return {root,inner,arms,legs,phase:0,v:0,wave:0,yaw:0,seed:Math.random()*6};
 }
+const ARM_REST=.04;
 // 서 있기만 하는 해온이: 한 덩어리
 function staticHaeon(o){
   const {P,arm,leg}=haeonParts(o),all=[...P];
-  [-1,1].forEach(s=>{const A=T(s*.29,.62,0,1,1,1,0,0,s*.38),L=T(s*.13,.2,0,1);arm().forEach(([g,c,m])=>all.push([g,c,A.clone().multiply(m)]));leg().forEach(([g,c,m])=>all.push([g,c,L.clone().multiply(m)]));});
+  [-1,1].forEach(s=>{const A=T(s*ARM_X,SHOULDER*PX,0,1),L=T(s*LEG_X,HIP*PX,0,1);arm().forEach(([g,c,m])=>all.push([g,c,A.clone().multiply(m)]));leg().forEach(([g,c,m])=>all.push([g,c,L.clone().multiply(m)]));});
   return new THREE.Mesh(cached("s"+o.top,()=>merged(all)),HMAT);
 }
+// 마인크래프트처럼 팔다리만 앞뒤로 흔듭니다(몸은 늘어나거나 눌리지 않음)
 function animHaeon(h,dt,s){
-  const w=Math.min(1,h.v/1.1),sn=Math.sin(h.phase+=dt*h.v*5.5);
-  h.legs[0].rotation.x=sn*.75*w;h.legs[1].rotation.x=-sn*.75*w;h.arms[0].rotation.x=-sn*.55*w;h.arms[1].rotation.x=h.wave>0?0:sn*.55*w;
-  h.inner.position.y=Math.abs(Math.cos(h.phase))*.07*w;h.inner.rotation.z=sn*.06*w;h.inner.scale.y=1+Math.sin(s*2.4+h.seed)*.015*(1-w);
-  if(h.wave>0)h.wave-=dt;const g=h.wave>0?2.5+Math.sin(s*12)*.35:.38;h.arms[1].rotation.z+=(g-h.arms[1].rotation.z)*Math.min(1,dt*10);
+  const w=Math.min(1,h.v/1.1),sn=Math.sin(h.phase+=dt*h.v*4.5);
+  h.legs[0].rotation.x=sn*.8*w;h.legs[1].rotation.x=-sn*.8*w;h.arms[0].rotation.x=-sn*.7*w;h.arms[1].rotation.x=h.wave>0?0:sn*.7*w;
+  if(h.wave>0)h.wave-=dt;const g=h.wave>0?2.7+Math.sin(s*12)*.3:ARM_REST;h.arms[1].rotation.z+=(g-h.arms[1].rotation.z)*Math.min(1,dt*10);
 }
 const SHIRT=[0xffffff,0x3b5b8c,0xf2a65a,0x7cb7a3,0xe7798f,0x8f9aa6];
 function person(x,z,parent,c){const m=staticHaeon({top:c||SHIRT[(Math.abs(x*7+z*3)|0)%SHIRT.length]});m.scale.setScalar(.7);m.position.set(x,.02,z);m.rotation.y=Math.PI;parent.add(m);return m;}
@@ -578,7 +583,7 @@ function talkContent(i,step){
   return {msg:step==="hi"?p.talk.hi:p.talk[step],opts:[{href:p.url,l:"바로 열어볼래요 ↗",cls:"main"},...ask,bye]};
 }
 function openTalk(i){
-  talkNpc=i;const n=NPCS[i];n.h.wave=1.3;P.vx=P.vz=0;
+  talkNpc=i;const n=NPCS[i];n.h.wave=1.3;P.vx=P.vz=0;player.yaw=Math.atan2(n.x-P.x,n.z-P.z);player.root.rotation.y=player.yaw;
   $("talk").style.setProperty("--accent",n.color);$("tImg").src=HAEON[i<4?PROJECTS[i].pose:"wave"];$("tName").textContent=n.name;$("tRole").textContent=i<4?PROJECTS[i].name:"광주 서구청";
   $("talk").hidden=false;$("talkBtn").hidden=true;$("walkUi").hidden=true;talkTo("hi");
 }
