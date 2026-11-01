@@ -613,9 +613,9 @@ let down=null,pointers=new Map(),pinch0=0;
 const cv=renderer.domElement;
 cv.addEventListener("pointerdown",e=>{try{cv.setPointerCapture(e.pointerId)}catch(_){}pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===1)down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,az:goal.az,el:goal.el,t:performance.now()};
-  if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;pinch0=walking?span*WC.dist:span/goal.dist;}});
+  if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;pinch0=span*(walking?WC.dist:goal.dist);}});
 cv.addEventListener("pointermove",e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;if(walking)WC.dist=clamp(pinch0/span,3.5,12);else{goal.dist=clamp(span/pinch0,18,95);startTween(true);}return;}
+  if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;if(walking)WC.dist=clamp(pinch0/span,3.5,12);else{goal.dist=clamp(pinch0/span,18,95);startTween(true);}return;}
   if(!down)return;const dx=e.clientX-down.x,dy=e.clientY-down.y;if(Math.hypot(dx,dy)>4){dragging=true;$("stage").classList.add("dragging");$("hint").style.opacity=0;}
   if(!dragging)return;
   if(walking){WC.yaw-=(e.clientX-down.lx)*.008;WC.pitch=clamp(WC.pitch+(e.clientY-down.ly)*.005,.06,1.1);down.lx=e.clientX;down.ly=e.clientY;}
