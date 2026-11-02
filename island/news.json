@@ -1,7 +1,15 @@
 {
-  "updated": "2026-11-02T07:50:00+09:00",
-  "label": "11월 2일",
+  "updated": "2026-11-03T07:50:00+09:00",
+  "label": "11월 3일",
   "items": [
+    {
+      "title": "서구, 올해의 ‘착한뉴스 TOP10’ 주민이 뽑는다",
+      "short": "착한뉴스 TOP10 주민투표 16일까지",
+      "source": "남도일보",
+      "count": 15,
+      "date": "11월 2일",
+      "url": "https://www.namdonews.com/news/articleView.html?idxno=927975"
+    },
     {
       "title": "아이들 눈으로 본 세상은?…광주 서구, 100인 아동 작가집 발간",
       "short": "어린이 100명 글·그림 작품집 발간",
@@ -9,14 +17,6 @@
       "count": 8,
       "date": "10월 28일",
       "url": "https://view.asiae.co.kr/article/2026102813533232195"
-    },
-    {
-      "title": "전남광주 서구 장학생 131명 선발…올해 첫 국외연수에 5명",
-      "short": "서구장학재단 장학생 131명 선발",
-      "source": "아시아경제",
-      "count": 6,
-      "date": "10월 30일",
-      "url": "https://view.asiae.co.kr/article/2026103020153017486"
     }
   ]
 }
