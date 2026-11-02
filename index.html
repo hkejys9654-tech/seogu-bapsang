@@ -1565,7 +1565,7 @@ function adminPanel(){if(st.adminTab==="call")return callPanel();if(st.adminTab=
 function callBreakdown(rows){const groups=rows.filter(r=>partySizeOf(r)>1),solo=totalPeople(rows.filter(r=>partySizeOf(r)<=1));if(!groups.length)return "";return `<div class="call-breakdown">${solo?`<span>개인 ${solo}명</span>`:""}${groups.map(r=>`<span class="cb-group">단체 ${String(queueNumberFor(r)).padStart(3,"0")}번 · ${partySizeOf(r)}명</span>`).join("")}</div>`}
 function callPanel(){
   const time=st.adminCallSlot,date=st.date,closed=isQueueClosed(date,time),rows=queueRows(date,time),waiting=rows.filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed"),retryWaiting=totalPeople(waiting.filter(r=>Number(r.requeueCount||0)>0)),called=rows.filter(r=>r.status==="reserved"&&r.callStatus==="called"),done=rows.filter(r=>r.status==="checkedin"||r.callStatus==="passed"),waitingPeople=totalPeople(waiting),calledPeople=totalPeople(called),donePeople=totalPeople(done),token=called[0]&&called[0].callToken||"";
-  const cap=(SLOTS.find(s=>s[0]===time)||SLOTS[0])[1],firstParty=waiting.length?partySizeOf(waiting[0]):0,tooSmall=firstParty>st.adminCallSize,size=st.adminCallSize,canCall=waiting.length&&date===todayDate()&&!closed&&!tooSmall&&!callNext.pending;
+  const cap=(SLOTS.find(s=>s[0]===time)||SLOTS[0])[1],firstParty=waiting.length?partySizeOf(waiting[0]):0,tooSmall=firstParty>st.adminCallSize,size=st.adminCallSize,nextSlot=!waiting.length&&date===todayDate()?nextCallableSlot(date,time):"",canCall=((waiting.length&&!closed&&!tooSmall)||nextSlot)&&date===todayDate()&&!callNext.pending;
   const all=Math.max(1,waitingPeople+calledPeople+donePeople),pct=n=>Math.round(n/all*100);
   const slotBtns=SLOTS.map(([t])=>{const w=totalPeople(queueRows(date,t).filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed")),shut=isQueueClosed(date,t),live=queueRows(date,t).some(r=>r.status==="reserved"&&r.callStatus==="called");return `<button class="cp-slot ${t===time?"active":""} ${shut?"shut":""} ${live?"live":""}" onclick="setCallSlot('${t}')"><b>${t}</b><span>${shut?"마감":`대기 ${w}`}</span></button>`}).join("");
   const board=called.length?`<div class="cp-board go">${haeon("point","hx-call",true)}<div class="cp-big">지금 ${calledPeople}명</div><div class="cp-token">${esc(token)}</div>${callBreakdown(called)}</div>`:closed?`<div class="cp-board shut"><div class="cp-big">마감</div><div class="cp-sub">${time} 타임 운영 종료</div></div>`:`<div class="cp-board idle"><div class="cp-big">대기 ${waitingPeople}명</div><div class="cp-sub">${time} 타임${retryWaiting?` · 재대기 ${retryWaiting}명`:""}</div></div>`;
@@ -1576,8 +1576,8 @@ function callPanel(){
     <div class="cp-legend"><span class="d">입장 ${donePeople}</span><span class="c">호출 ${calledPeople}</span><span class="w">대기 ${waitingPeople}</span></div>
     <div class="cp-size"><button onclick="setCallSize(${size-1})" aria-label="1명 줄이기" ${size<=1||callNext.pending?"disabled":""}>−</button><b>${size}명</b><button onclick="setCallSize(${size+1})" aria-label="1명 늘리기" ${size>=cap||callNext.pending?"disabled":""}>＋</button></div>
     <div class="cp-quick">${[5,10,15,20].filter(n=>n<=cap).map(n=>`<button class="${n===size?"active":""}" onclick="setCallSize(${n})" ${callNext.pending?"disabled":""}>${n}</button>`).join("")}</div>
-    <button class="btn green full cp-call" onclick="callNext(st.adminCallSize)" ${canCall?"":"disabled"}>${callNext.pending?"호출 중…":`다음 ${size}명 호출`}</button>
-    ${tooSmall?`<div class="call-size-hint">맨 앞 단체는 ${firstParty}명입니다. ${firstParty}명 이상을 선택해주세요.</div>`:date!==todayDate()?`<div class="call-size-hint">${pretty(date)} 화면이에요. 호출은 오늘만 할 수 있어요. <button class="btn light small" onclick="goToday()">오늘로 이동</button></div>`:closed?`<div class="call-size-hint">${time} 타임이 마감돼 있어요. 아래 '이 시간 다시 열기'를 누르면 호출할 수 있어요.</div>`:!waiting.length?`<div class="call-size-hint">${time} 타임에 기다리는 예약자가 없어요. 위에서 다른 시간을 골라보세요.</div>`:""}
+    <button class="btn green full cp-call" onclick="callNext(st.adminCallSize)" ${canCall?"":"disabled"}>${callNext.pending?"호출 중…":nextSlot?`${nextSlot} 타임에서 ${size}명 호출`:`다음 ${size}명 호출`}</button>
+    ${tooSmall?`<div class="call-size-hint">맨 앞 단체는 ${firstParty}명입니다. ${firstParty}명 이상을 선택해주세요.</div>`:date!==todayDate()?`<div class="call-size-hint">${pretty(date)} 화면이에요. 호출은 오늘만 할 수 있어요. <button class="btn light small" onclick="goToday()">오늘로 이동</button></div>`:nextSlot?`<div class="call-size-hint">${time} 타임은 대기자가 없어서 ${nextSlot} 타임 대기자를 이어서 불러요.</div>`:closed?`<div class="call-size-hint">${time} 타임이 마감돼 있어요. 아래 '이 시간 다시 열기'를 누르면 호출할 수 있어요.</div>`:!waiting.length?`<div class="call-size-hint">${time} 타임에 기다리는 예약자가 없어요. 위에서 다른 시간을 골라보세요.</div>`:""}
     <div class="cp-minor">${called.length?`<button onclick="closeCurrentCall()">현재 호출 종료</button>`:""}<button class="${closed?"open":"danger"}" onclick="toggleQueueClosed()">${closed?"이 시간 다시 열기":"이 시간 마감"}</button></div>
     ${date!==todayDate()?`<div class="notice">입장 호출은 오늘 날짜에서만 실행할 수 있습니다. <button class="btn light small" onclick="quick(0)">오늘로</button></div>`:""}
   </div>`;
@@ -1640,9 +1640,13 @@ function goToday(){st.date=todayDate();refreshDataScope();render()}
 function setCallSlot(time){if(!SLOTS.some(s=>s[0]===time))return;st.adminCallSlot=time;render()}
 function setCallSize(value){const size=Number(value),cap=(SLOTS.find(s=>s[0]===st.adminCallSlot)||SLOTS[0])[1];if(callNext.pending||!Number.isInteger(size)||size<1||size>cap)return;st.adminCallSize=size;render()}
 function newCallToken(){const words=["솔잎","한결","새봄","느티","푸른","이음","바른","마루","온빛","다온"];return "초록 · "+words[Math.floor(Math.random()*words.length)]}
+// 고른 시간에 기다리는 사람이 없으면, 대기자가 있는 다음 시간을 이어서 부릅니다.
+function waitingIn(date,time){return queueRows(date,time).filter(r=>r.status==="reserved"&&r.callStatus!=="called"&&r.callStatus!=="passed")}
+function nextCallableSlot(date,time){const i=slotIndex(time),order=[...SLOTS.slice(i+1),...SLOTS.slice(0,Math.max(0,i))].map(s=>s[0]);return order.find(t=>!isQueueClosed(date,t)&&waitingIn(date,t).length)||""}
 async function callNext(size){
-  const date=st.date,time=st.adminCallSlot;
   if(callNext.pending)return toast("입장 처리 중입니다. 잠시만 기다려주세요.");
+  if(!waitingIn(st.date,st.adminCallSlot).length){const next=nextCallableSlot(st.date,st.adminCallSlot);if(next){st.adminCallSlot=next;toast(`${next} 타임 대기자를 이어서 부를게요.`);}}
+  const date=st.date,time=st.adminCallSlot;
   size=Number(size);const cap=(SLOTS.find(s=>s[0]===time)||[])[1];
   if(!Number.isInteger(size)||size<1||!cap||size>cap)return toast("호출 인원을 선택해주세요.");
   if(date!==todayDate())return toast("오늘 날짜에서만 입장 인원을 호출할 수 있습니다.");
