@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const path=require('node:path');
 const html=fs.readFileSync(process.env.CALL_FLOW_HTML||path.join(__dirname,'../index.html'),'utf8');
 function functionSource(name){const starts=[...html.matchAll(/^(?:async )?function [A-Za-z_$][\w$]*\(/gm)];const index=starts.findIndex(m=>m[0].includes(`function ${name}(`));assert.ok(index>=0);return html.slice(starts[index].index,starts[index+1]?.index||html.length);}
-const source=['takeWaitingByPeople','waitingIn','nextCallableSlot','setCallSize','callBreakdown','haeon','callPanel'].map(functionSource).join('\n')+'\n'+html.slice(html.indexOf('async function callNext(size){'),html.indexOf('async function addNotice(){'));
+const source=['takeWaitingByPeople','setCallSize','callBreakdown','haeon','callPanel'].map(functionSource).join('\n')+'\n'+html.slice(html.indexOf('async function callNext(size){'),html.indexOf('async function addNotice(){'));
 const SLOTS=JSON.parse(html.match(/^const SLOTS=(\[[^;]+\]);/m)[1]);
 const date='2026-10-17',time='11:40',slot=`${date}_1140`;
 function setup(options={}){
@@ -118,7 +118,7 @@ test('call size stepper keeps the selected value after live renders and calls',a
   const h=setup();h.run('setCallSize("17")');
   for(let i=0;i<2;i++){
     const panel=h.run('callPanel()');
-    assert.match(panel,/<b>17명<\/b>/);assert.match(panel,/다음 17명 호출/);
+    assert.match(panel,/<b>17명<\/b>/);assert.match(panel,/타임 17명 호출/);
     assert.match(panel,/setCallSize\(16\)/);assert.match(panel,/setCallSize\(18\)/);
     assert.equal(panel.includes('onclick="callNext(10)"'),false);
   }

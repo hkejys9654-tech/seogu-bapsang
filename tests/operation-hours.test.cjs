@@ -39,9 +39,10 @@ test('late arrival starts at the end of the reserved five minute interval',()=>{
  assert.equal(c.reservationTimePassed({...r,time:'12:00'},at('12:04:59')),false);
  assert.equal(c.reservationTimePassed({...r,time:'12:00'},at('12:05:00')),true);
 });
-test('an expired called ticket loses its green entry permission; checked-in stays complete',()=>{
+test('a ticket the administrator called stays green after its slot time; uncalled ones expire; checked-in stays complete',()=>{
  const {c,run}=app();run('firebaseOn=false;reservationTimePassed=()=>true');
- assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'called'}).short,'예약시간 지남');
+ assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'called'}).short,'입장 호출');
+ assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'waiting'}).short,'예약시간 지남');
  assert.equal(c.callVisual({status:'checkedin',time:'11:40',callStatus:'called'}).short,'입장 완료');
 });
 test('clock refreshes the open screen only on minute changes and does not disrupt settings forms',()=>{
