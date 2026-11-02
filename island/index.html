@@ -209,7 +209,7 @@ const PROJECTS=[
 ];
 
 // 처음 열 때 쓰는 기본 기사(매일 아침 news.json 으로 바뀜)
-let NEWS={"updated": "2026-11-01T11:40:00+09:00", "label": "11월 1일", "items": [{"title": "광주 서구, 청소년·대학생 131명 학업·국외연수 지원", "short": "서구장학재단, 청소년·대학생 131명 장학생 선발", "source": "노컷뉴스", "count": 3, "date": "10월 30일", "url": "https://nocutnews.co.kr/news/6599880"}, {"title": "전남광주 서구, 주민 의견 반영해 구정홍보 개선 나선다", "short": "구정소식지·SNS 만족도 조사…11월 6일까지 참여", "source": "중앙이코노미뉴스", "count": 1, "date": "10월 27일", "url": "https://www.joongangenews.com/news/articleView.html?idxno=558565"}]};
+let NEWS={"updated": "2026-11-02T07:50:00+09:00", "label": "11월 2일", "items": [{"title": "아이들 눈으로 본 세상은?…광주 서구, 100인 아동 작가집 발간", "short": "어린이 100명 글·그림 작품집 발간", "source": "아시아경제", "count": 8, "date": "10월 28일", "url": "https://view.asiae.co.kr/article/2026102813533232195"}, {"title": "전남광주 서구 장학생 131명 선발…올해 첫 국외연수에 5명", "short": "서구장학재단 장학생 131명 선발", "source": "아시아경제", "count": 6, "date": "10월 30일", "url": "https://view.asiae.co.kr/article/2026103020153017486"}]};
 (function(){
 const $=id=>document.getElementById(id);
 $("loadImg").src=HAEON.wave;$("brandImg").src=HAEON.wave;
@@ -262,6 +262,7 @@ function bannerTex(item,k){const st=BANNER_STYLE[k];return canvasTex(1024,128,(x
 const banners=[0,1].map(k=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(6.4,0.8),new THREE.MeshBasicMaterial({map:bannerTex(null,k)}));m.position.set(0,5.4-k*1.1,0.16);m.userData.zone=4;hall.add(m);
   [-3.25,3.25].forEach(x=>box(0.06,0.06,0.06,0x555555,x,5.4-k*1.1+0.36,0.17,hall));return m;});
 hall.traverse(o=>{if(o.isMesh)o.userData.zone=4;});
+banners.forEach((m,k)=>m.userData.news=k);// 현수막을 누르면 그 기사로 이동
 /* ---------- 블록 해온이(마인크래프트 느낌): 네모 블록과 픽셀 얼굴, 부위를 한 덩어리로 합쳐 가볍게 그립니다 ---------- */
 const HG={box:new THREE.BoxGeometry(1,1,1)};
 const HC={cream:0xf6eedf,cream2:0xe9dcc4,beak:0xf08a3c,beak2:0xc9652a,mouth:0x8e3427,eye:0x2a1c15,cheek:0xf3a184,feet:0xe07a2e,white:0xffffff};
@@ -528,10 +529,11 @@ function enterWalk(){
   walking=true;document.body.classList.add("walking");if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
   WC.pos.copy(camera.position);WC.look.set(rig.tx,rig.ty,rig.tz);WC.yaw=player.yaw+Math.PI;WC.pitch=.34;WC.fast=0;camera.clearViewOffset();
   $("viewBtn").textContent="↩ 하늘에서 보기";$("enterBtn").hidden=true;$("walkUi").hidden=false;$("stick").hidden=!touchUI;nearNpc=-1;
-  showHint(touchUI?"왼쪽 동그라미로 걷고, 화면을 끌어 둘러보세요":"WASD·방향키로 걷고, 마우스로 끌어 둘러보세요");requestRender();
+  if(!touchUI)lockMouse();
+  showHint(touchUI?"왼쪽 동그라미로 걷고, 화면을 끌어 둘러보세요":"마우스로 둘러보고 WASD로 걸어요 · Esc를 누르면 커서가 나와요",6000);requestRender();
 }
 function exitWalk(){
-  if(!walking)return;closeTalk();walking=false;document.body.classList.remove("walking");
+  if(!walking)return;unlockMouse();closeTalk();walking=false;document.body.classList.remove("walking");
   const d=camera.position.clone().sub(WC.look),L=d.length()||1;
   Object.assign(rig,{tx:WC.look.x,ty:WC.look.y,tz:WC.look.z,dist:L,az:Math.atan2(d.x,d.z),el:Math.asin(clamp(d.y/L,-1,1)),ox:0,oy:0});
   Object.assign(goal,OVER,{az:rig.az,dist:fitDist()});
@@ -560,7 +562,7 @@ function updateWalkCam(dt){
   camLook.set(P.x,player.root.position.y+1.15,P.z);
   const cp=Math.cos(WC.pitch);camDir.set(Math.sin(WC.yaw)*cp,Math.sin(WC.pitch),Math.cos(WC.yaw)*cp);
   let d=WC.dist;for(let s=.8;s<=WC.dist;s+=.3){if(camBlocked(camLook.x+camDir.x*s,camLook.y+camDir.y*s,camLook.z+camDir.z*s)){d=Math.max(1.4,s-.4);break;}}
-  const k=1-Math.exp(-dt*(1.6+WC.fast*8));
+  const k=1-Math.exp(-dt*(1.6+WC.fast*8)*(mouseLocked()?2.5:1));
   WC.pos.lerp(camGoal.copy(camLook).addScaledVector(camDir,d),k);WC.look.lerp(camLook,k);
   camera.position.copy(WC.pos);camera.lookAt(WC.look);
 }
@@ -583,6 +585,7 @@ function talkContent(i,step){
   return {msg:step==="hi"?p.talk.hi:p.talk[step],opts:[{href:p.url,l:"바로 열어볼래요 ↗",cls:"main"},...ask,bye]};
 }
 function openTalk(i){
+  unlockMouse();
   talkNpc=i;const n=NPCS[i];n.h.wave=1.3;P.vx=P.vz=0;player.yaw=Math.atan2(n.x-P.x,n.z-P.z);player.root.rotation.y=player.yaw;
   $("talk").style.setProperty("--accent",n.color);$("tImg").src=HAEON[i<4?PROJECTS[i].pose:"wave"];$("tName").textContent=n.name;$("tRole").textContent=i<4?PROJECTS[i].name:"광주 서구청";
   $("talk").hidden=false;$("talkBtn").hidden=true;$("walkUi").hidden=true;talkTo("hi");
@@ -599,6 +602,13 @@ $("tOpts").onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=b
 $("tClose").onclick=closeTalk;
 $("talkBtn").onclick=()=>{if(nearNpc>=0)openTalk(nearNpc);};
 
+/* ---------- PC: FPS처럼 마우스로 둘러보기(클릭하면 커서가 숨고, Esc로 다시 나옴) ---------- */
+function mouseLocked(){return document.pointerLockElement===renderer.domElement;}
+function lockMouse(){const c=renderer.domElement;if(touchUI||mouseLocked()||!c.requestPointerLock)return;try{const r=c.requestPointerLock();if(r&&r.catch)r.catch(()=>{});}catch(_){}}
+function unlockMouse(){if(mouseLocked()&&document.exitPointerLock)document.exitPointerLock();}
+document.addEventListener("mousemove",e=>{if(!walking||!mouseLocked())return;WC.yaw-=e.movementX*.0025;WC.pitch=clamp(WC.pitch+e.movementY*.002,.06,1.1);});
+document.addEventListener("pointerlockchange",()=>{if(walking&&!mouseLocked()&&talkNpc<0&&$("guide").hidden)showHint("화면을 클릭하면 다시 마우스로 둘러봐요",3000);});
+
 /* ---------- 조이스틱 ---------- */
 const stickEl=$("stick"),knob=$("knob");let stickId=null;
 function resetStick(){stickId=null;stick.x=stick.y=0;knob.style.transform="";}
@@ -611,7 +621,7 @@ stickEl.addEventListener("pointermove",e=>{if(e.pointerId===stickId)moveStick(e)
 const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
 let down=null,pointers=new Map(),pinch0=0;
 const cv=renderer.domElement;
-cv.addEventListener("pointerdown",e=>{try{cv.setPointerCapture(e.pointerId)}catch(_){}pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+cv.addEventListener("pointerdown",e=>{if(walking&&mouseLocked()){if(nearNpc>=0&&talkNpc<0)openTalk(nearNpc);return;}try{cv.setPointerCapture(e.pointerId)}catch(_){}pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===1)down={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,az:goal.az,el:goal.el,t:performance.now()};
   if(pointers.size===2){const [a,b]=[...pointers.values()],span=Math.hypot(a.x-b.x,a.y-b.y)||1;pinch0=span*(walking?WC.dist:goal.dist);}});
 cv.addEventListener("pointermove",e=>{if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -620,15 +630,20 @@ cv.addEventListener("pointermove",e=>{if(!pointers.has(e.pointerId))return;point
   if(!dragging)return;
   if(walking){WC.yaw-=(e.clientX-down.lx)*.008;WC.pitch=clamp(WC.pitch+(e.clientY-down.ly)*.005,.06,1.1);down.lx=e.clientX;down.ly=e.clientY;}
   else{goal.az=down.az-dx*0.006;goal.el=clamp(down.el+dy*0.004,0.22,1.25);startTween(true);}});
-function up(e){pointers.delete(e.pointerId);$("stage").classList.remove("dragging");if(down&&!dragging&&performance.now()-down.t<400)pick(e.clientX,e.clientY);if(pointers.size===0){down=null;dragging=false;}}
+function up(e){pointers.delete(e.pointerId);$("stage").classList.remove("dragging");if(down&&!dragging&&performance.now()-down.t<400&&!pick(e.clientX,e.clientY)&&walking&&e.pointerType==="mouse"&&talkNpc<0)lockMouse();if(pointers.size===0){down=null;dragging=false;}}
 cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
 cv.addEventListener("wheel",e=>{e.preventDefault();if(walking){WC.dist=clamp(WC.dist*(1+Math.sign(e.deltaY)*0.1),3.5,12);return;}goal.dist=clamp(goal.dist*(1+Math.sign(e.deltaY)*0.08),18,95);startTween(true);},{passive:false});
 function pick(x,y){
   ndc.set(x/innerWidth*2-1,-(y/innerHeight)*2+1);ray.setFromCamera(ndc,camera);
-  if(walking){if(talkNpc>=0)return;const hit=ray.intersectObjects(NPCS.map(n=>n.h.root),true)[0];if(!hit)return;let o=hit.object;while(o&&o.userData.npc===undefined)o=o.parent;if(!o)return;
-    const n=NPCS[o.userData.npc];if(Math.hypot(P.x-n.x,P.z-n.z)<4)openTalk(n.i);else toast(`${n.name}에게 조금 더 가까이 가 보세요`);return;}
-  const hit=ray.intersectObjects([...ZONES.map(z=>z.group),hall],true)[0];if(hit&&hit.object.userData.zone!==undefined)openZone(hit.object.userData.zone);else if(focus>=0)closeCard();
+  if(walking){if(talkNpc>=0)return true;const hit=ray.intersectObjects([...NPCS.map(n=>n.h.root),hall],true)[0];if(!hit)return false;
+    if(hit.object.userData.news!==undefined){openNews(hit.object.userData.news);return true;}
+    let o=hit.object;while(o&&o.userData.npc===undefined)o=o.parent;if(!o)return false;
+    const n=NPCS[o.userData.npc];if(Math.hypot(P.x-n.x,P.z-n.z)<4)openTalk(n.i);else toast(`${n.name}에게 조금 더 가까이 가 보세요`);return true;}
+  const hit=ray.intersectObjects([...ZONES.map(z=>z.group),hall],true)[0];
+  if(hit&&hit.object.userData.news!==undefined){openNews(hit.object.userData.news);return true;}
+  if(hit&&hit.object.userData.zone!==undefined)openZone(hit.object.userData.zone);else if(focus>=0)closeCard();return true;
 }
+function openNews(k){const n=(NEWS.items||[])[k];if(!n||!n.url)return toast("오늘 소식을 불러오는 중이에요");unlockMouse();const l=document.createElement("a");l.href=n.url;l.target="_blank";l.rel="noopener";document.body.appendChild(l);l.click();l.remove();}
 const MOVE_KEYS=["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"];
 addEventListener("keydown",e=>{
   if(walking){
