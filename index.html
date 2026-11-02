@@ -743,7 +743,8 @@ function snapshotState(snap){return snap.metadata&&(snap.metadata.fromCache||sna
 function dataFailure(key,err){console.error(err);dataState[key]="error";render();}
 function refreshDataScope(force=false){
   if(!firebaseOn||!db)return;
-  if(!isAdminData())st.date=todayDate();
+  // 입장호출은 오늘만 가능하므로, 관리자도 호출 탭에서는 항상 오늘 날짜를 봅니다(앱을 며칠 켜둔 경우 대비).
+  if(!isAdminData()||st.adminTab==="call")st.date=todayDate();
   applySchedule(isAdminData()?todayDate():st.date);
   const key=[st.user&&st.user.emp||"",isAdminData()?"admin":"staff",st.date].join("|");
   if(!force&&key===dataScope)return;
@@ -1576,7 +1577,7 @@ function callPanel(){
     <div class="cp-size"><button onclick="setCallSize(${size-1})" aria-label="1명 줄이기" ${size<=1||callNext.pending?"disabled":""}>−</button><b>${size}명</b><button onclick="setCallSize(${size+1})" aria-label="1명 늘리기" ${size>=cap||callNext.pending?"disabled":""}>＋</button></div>
     <div class="cp-quick">${[5,10,15,20].filter(n=>n<=cap).map(n=>`<button class="${n===size?"active":""}" onclick="setCallSize(${n})" ${callNext.pending?"disabled":""}>${n}</button>`).join("")}</div>
     <button class="btn green full cp-call" onclick="callNext(st.adminCallSize)" ${canCall?"":"disabled"}>${callNext.pending?"호출 중…":`다음 ${size}명 호출`}</button>
-    ${tooSmall?`<div class="call-size-hint">맨 앞 단체는 ${firstParty}명입니다. ${firstParty}명 이상을 선택해주세요.</div>`:""}
+    ${tooSmall?`<div class="call-size-hint">맨 앞 단체는 ${firstParty}명입니다. ${firstParty}명 이상을 선택해주세요.</div>`:date!==todayDate()?`<div class="call-size-hint">${pretty(date)} 화면이에요. 호출은 오늘만 할 수 있어요. <button class="btn light small" onclick="goToday()">오늘로 이동</button></div>`:closed?`<div class="call-size-hint">${time} 타임이 마감돼 있어요. 아래 '이 시간 다시 열기'를 누르면 호출할 수 있어요.</div>`:!waiting.length?`<div class="call-size-hint">${time} 타임에 기다리는 예약자가 없어요. 위에서 다른 시간을 골라보세요.</div>`:""}
     <div class="cp-minor">${called.length?`<button onclick="closeCurrentCall()">현재 호출 종료</button>`:""}<button class="${closed?"open":"danger"}" onclick="toggleQueueClosed()">${closed?"이 시간 다시 열기":"이 시간 마감"}</button></div>
     ${date!==todayDate()?`<div class="notice">입장 호출은 오늘 날짜에서만 실행할 수 있습니다. <button class="btn light small" onclick="quick(0)">오늘로</button></div>`:""}
   </div>`;
@@ -1634,7 +1635,8 @@ function syncAdminLogout(event){
   st.adminUnlocked=false;stopScanner();refreshDataScope();render();
 }
 function closeAdmin(){const cleared=setAdminSession(false);stopScanner();refreshDataScope();render();toast(cleared?"관리자 모드에서 로그아웃되었습니다.":"저장된 관리자 정보를 지우지 못했어요. 브라우저의 사이트 데이터를 삭제해주세요.")}
-function setAdminTab(tab){st.adminTab=tab;if(tab!=="camera")stopScanner();render()}
+function setAdminTab(tab){st.adminTab=tab;if(tab!=="camera")stopScanner();if(tab==="call"&&st.date!==todayDate())refreshDataScope();render()}
+function goToday(){st.date=todayDate();refreshDataScope();render()}
 function setCallSlot(time){if(!SLOTS.some(s=>s[0]===time))return;st.adminCallSlot=time;render()}
 function setCallSize(value){const size=Number(value),cap=(SLOTS.find(s=>s[0]===st.adminCallSlot)||SLOTS[0])[1];if(callNext.pending||!Number.isInteger(size)||size<1||size>cap)return;st.adminCallSize=size;render()}
 function newCallToken(){const words=["솔잎","한결","새봄","느티","푸른","이음","바른","마루","온빛","다온"];return "초록 · "+words[Math.floor(Math.random()*words.length)]}
