@@ -1610,7 +1610,9 @@ async function toggleHistory(){
   finally{if(epoch===dataEpoch){historyLoading=false;render();}}
 }
 async function verifyAdminCode(value){
-  if(!firebaseOn||typeof firebase.auth!=="function"||!String(value||""))return false;
+  // 휴대폰 키보드의 전각 기호(＊)나 앞뒤 공백 때문에 틀리지 않도록 정리합니다.
+  value=String(value||"").normalize("NFKC").trim();
+  if(!firebaseOn||typeof firebase.auth!=="function"||!value)return false;
   const auth=firebase.auth();
   if(!auth.currentUser)await auth.signInAnonymously();
   const idToken=await auth.currentUser.getIdToken();
