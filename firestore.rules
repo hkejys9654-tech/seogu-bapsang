@@ -1,0 +1,61 @@
+rules_version = '2';
+// 서구밥상 Firestore 규칙
+// - 관리자: 서버(adminLogin)가 번호를 확인하고 붙여준 12시간짜리 관리자 표시가 있어야 함
+// - 직원: 새 예약, 자기 예약 취소, 1회 재대기만 가능 (호출·입장·노쇼 처리는 불가)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.admin == true
+        && request.auth.token.adminExp > request.time.toMillis();
+    }
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function freshBooking() {
+      return request.resource.data.status in ['reserved', 'late']
+        && request.resource.data.callStatus == 'waiting';
+    }
+    function staffCancel() {
+      return resource.data.status == 'reserved'
+        && request.resource.data.status == 'cancelled'
+        && changed().hasOnly(['status', 'updatedAt']);
+    }
+    function staffRebook() {
+      return resource.data.status == 'cancelled' && freshBooking();
+    }
+    function staffRequeue() {
+      return resource.data.status == 'reserved'
+        && resource.data.callStatus == 'passed'
+        && (resource.data.get('requeueCount', 0) < 1)
+        && request.resource.data.status == 'reserved'
+        && request.resource.data.callStatus == 'waiting'
+        && request.resource.data.requeueCount == 1
+        && changed().hasOnly(['time', 'originalTime', 'queueNumber', 'requeueCount', 'callStatus',
+             'callToken', 'callBatchId', 'isOverflow', 'requeuedAt', 'updatedAt']);
+    }
+
+    match /reservations/{id} {
+      allow read: if true;
+      allow create: if isAdmin() || freshBooking();
+      allow update: if isAdmin() || staffCancel() || staffRebook() || staffRequeue();
+      allow delete: if isAdmin();
+    }
+
+    // 관리자만 바꿀 수 있는 것
+    match /queueControls/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /notices/{id}       { allow read: if true; allow write: if isAdmin(); }
+    match /penalties/{id}     { allow read: if true; allow write: if isAdmin(); }
+    match /config/{id}        { allow read: if true; allow write: if isAdmin(); }
+
+    // 예약할 때 직원 앱이 함께 쓰는 것
+    match /slotCounts/{id}    { allow read, write: if true; }
+    match /companions/{id}    { allow read, write: if true; }
+    match /shares/{id}        { allow read, write: if true; }
+    match /staff/{id}         { allow read, write: if true; }
+
+    // 서버만 쓰는 것
+    match /pushTokens/{id}    { allow read, write: if false; }
+    match /adminAttempts/{id} { allow read, write: if false; }
+  }
+}

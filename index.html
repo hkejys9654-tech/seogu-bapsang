@@ -16,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-messaging-compat.js"></script>
 
 <style>
@@ -420,7 +421,9 @@ const SHOW_QR=false;
 const SLOT_MINUTES=5;
 const LATE_ARRIVAL_NOTICE="예약시간이 지났습니다. 12:10 이후 안내자 확인을 받고 식사해주세요.";
 // 화면 잠금용 코드의 검증값입니다. 서버 권한 인증을 대신하지 않습니다.
-const ADMIN_CODE_SHA256="79367e48230310e0bf6aac2db28bd150f3b21112914bdfcb3193b27dba723885";
+// 관리자 번호는 앱에 없고 서버(adminLogin)에만 있습니다. 서버가 확인한 뒤 12시간짜리 관리자 표시를 붙여줍니다.
+const ADMIN_LOGIN_ENDPOINT="https://asia-northeast3-seogu-bapsang.cloudfunctions.net/adminLogin";
+const ADMIN_SESSION_MARK="verified";
 const EARLY_OVERFLOW_QUOTA=12;
 const OVERFLOW_RELEASE_HOUR=10;
 const OVERFLOW_RELEASE_MINUTE=30;
@@ -463,7 +466,8 @@ let dataState={reservation:"loading",slots:"loading",controls:"loading",penalty:
 const ledgerMigrations=new Set();
 const CALL_OPEN_NOTICE="호출을 기다리는 동안 이 화면을 켜두세요. 화면을 닫거나 잠그면 호출 알림을 받을 수 없어요.";
 
-const restoredAdminSession=getLocal("admin_session",null)===ADMIN_CODE_SHA256;
+// 저장된 표시만으로는 열리지 않고, 서버가 붙여준 관리자 표시가 확인돼야 열립니다(restoreAdminSession).
+const restoredAdminSession=false;
 let adminSessionEpoch=0;
 let st={
   tab:restoredAdminSession?"more":"home",
@@ -719,7 +723,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init(){
   if(new URLSearchParams(location.search).get("open")==="my")st.tab="my";
   migrateUserOrganization();populateOrganizationSelect("org",st.user&&st.user.orgKey||"");populateDeptSelect("org","dept",st.user&&st.user.dept||"");
-  try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();firebaseOn=true;st.reservations=[];st.penalties={};st.queueControls={};refreshDataScope(true);listenNotices();loadSchedule();}
+  try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();firebaseOn=true;st.reservations=[];st.penalties={};st.queueControls={};refreshDataScope(true);listenNotices();loadSchedule();restoreAdminSession();}
   catch(e){console.error("Firebase init failed:",e);firebaseInitFailed=true;st.reservations=[];st.penalties={};st.queueControls={};}
   const sharedKey=new URLSearchParams(location.search).get("s");
   if(sharedKey&&/^[a-z0-9]{6,40}$/.test(sharedKey))openShared(sharedKey);
@@ -1606,15 +1610,35 @@ async function toggleHistory(){
   finally{if(epoch===dataEpoch){historyLoading=false;render();}}
 }
 async function verifyAdminCode(value){
-  if(!crypto.subtle)return false;
-  const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(String(value)));
-  return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,"0")).join("")===ADMIN_CODE_SHA256;
+  if(!firebaseOn||typeof firebase.auth!=="function"||!String(value||""))return false;
+  const auth=firebase.auth();
+  if(!auth.currentUser)await auth.signInAnonymously();
+  const idToken=await auth.currentUser.getIdToken();
+  const response=await fetch(ADMIN_LOGIN_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:String(value),idToken})});
+  const result=await response.json().catch(()=>({}));
+  if(response.status===429)return "locked:"+(result.minutes||15);
+  if(!response.ok||result.ok!==true)return false;
+  await auth.currentUser.getIdToken(true);
+  return await adminClaimValid();
+}
+async function adminClaimValid(){
+  try{const u=firebaseOn&&typeof firebase.auth==="function"&&firebase.auth().currentUser;if(!u)return false;const r=await u.getIdTokenResult();return r.claims.admin===true&&Number(r.claims.adminExp)>Date.now();}catch(e){return false}
+}
+// 앱을 다시 열었을 때: 이 기기에 관리자 기록이 있고, 서버가 붙여준 표시가 아직 유효할 때만 관리자 화면을 엽니다.
+function restoreAdminSession(){
+  if(!firebaseOn||typeof firebase.auth!=="function"||getLocal("admin_session",null)!==ADMIN_SESSION_MARK)return;
+  const epoch=adminSessionEpoch;
+  firebase.auth().onAuthStateChanged(async user=>{
+    if(!user||st.adminUnlocked||epoch!==adminSessionEpoch)return;
+    if(await adminClaimValid()&&epoch===adminSessionEpoch&&getLocal("admin_session",null)===ADMIN_SESSION_MARK){st.adminUnlocked=true;st.tab="more";st.adminTab="call";st.adminCallSlot=st.adminCallSlot||SLOTS[0][0];refreshDataScope();render();}
+    else if(epoch===adminSessionEpoch){try{localStorage.removeItem("sg_real_admin_session")}catch(e){}}
+  });
 }
 async function unlockAdmin(){
   if(st.adminUnlocked){go("more");return;}
   const pw=prompt("관리자 비밀번호를 입력해주세요.");if(pw===null)return;
   const attempt=++adminSessionEpoch;
-  try{const valid=await verifyAdminCode(pw);if(attempt!==adminSessionEpoch)return;if(valid){const remembered=setAdminSession(true);st.adminTab="call";st.adminCallSlot=st.adminCallSlot||SLOTS[0][0];refreshDataScope();render();toast(remembered?"입장 호출 화면이 열렸습니다.":"관리자 화면을 열었지만 이 기기에 저장하지 못했어요. 다음 접속 때 비밀번호를 다시 입력해주세요.")}else toast("관리자 비밀번호가 올바르지 않습니다.");}
+  try{const valid=await verifyAdminCode(pw);if(attempt!==adminSessionEpoch)return;if(typeof valid==="string"&&valid.startsWith("locked:"))return toast(`여러 번 틀려서 잠겼어요. ${valid.slice(7)}분 뒤에 다시 시도해주세요.`);if(valid===true){const remembered=setAdminSession(true);st.adminTab="call";st.adminCallSlot=st.adminCallSlot||SLOTS[0][0];refreshDataScope();render();toast(remembered?"입장 호출 화면이 열렸습니다.":"관리자 화면을 열었지만 이 기기에 저장하지 못했어요. 다음 접속 때 비밀번호를 다시 입력해주세요.")}else toast("관리자 비밀번호가 올바르지 않습니다.");}
   catch(error){toast("관리자 화면을 열지 못했습니다. 연결 주소와 브라우저를 확인해주세요.");}
 }
 
@@ -1623,14 +1647,15 @@ function setAdminSession(enabled){
   adminSessionEpoch++;
   st.adminUnlocked=enabled;
   try{
-    if(enabled)localStorage.setItem("sg_real_admin_session",JSON.stringify(ADMIN_CODE_SHA256));
+    if(!enabled&&firebaseOn&&typeof firebase.auth==="function")firebase.auth().signOut().catch(()=>{});
+    if(enabled)localStorage.setItem("sg_real_admin_session",JSON.stringify(ADMIN_SESSION_MARK));
     else localStorage.removeItem("sg_real_admin_session");
     return true;
   }catch(error){console.warn("Admin session storage is unavailable.");return false;}
 }
 function syncAdminLogout(event){
   if(event.key!==null&&event.key!=="sg_real_admin_session")return;
-  if(getLocal("admin_session",null)===ADMIN_CODE_SHA256)return;
+  if(getLocal("admin_session",null)===ADMIN_SESSION_MARK)return;
   adminSessionEpoch++;
   if(!st.adminUnlocked)return;
   st.adminUnlocked=false;stopScanner();refreshDataScope();render();

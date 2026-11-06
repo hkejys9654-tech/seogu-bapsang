@@ -6,6 +6,9 @@ const {onRequest}=require("firebase-functions/v2/https");
 const {initializeApp}=require("firebase-admin/app");
 const {getFirestore}=require("firebase-admin/firestore");
 const {getMessaging}=require("firebase-admin/messaging");
+const {getAuth}=require("firebase-admin/auth");
+const {defineSecret}=require("firebase-functions/params");
+const crypto=require("crypto");
 
 initializeApp();
 setGlobalOptions({region:"asia-northeast3",maxInstances:2,memory:"256MiB",timeoutSeconds:30});
@@ -44,4 +47,39 @@ exports.notifyEntryCall=onDocumentUpdated("reservations/{reservationId}",async e
       else console.error(err);
     }
   }));
+});
+
+// 관리자 로그인: 번호는 서버 비밀값(ADMIN_CODE)에만 있고 앱에는 없습니다.
+// 맞으면 그 기기의 로그인에 12시간짜리 관리자 표시를 붙이고, Firestore 규칙이 이 표시를 확인합니다.
+// 같은 곳에서 5번 틀리면 15분, 전체에서 한 시간에 30번 틀리면 15분 동안 잠급니다.
+const ADMIN_CODE=defineSecret("ADMIN_CODE");
+const ADMIN_HOURS=12,MAX_FAILS=5,GLOBAL_FAILS=30,LOCK_MS=15*60*1000,WINDOW_MS=60*60*1000;
+const sha=v=>crypto.createHash("sha256").update(String(v)).digest();
+exports.adminLogin=onRequest({cors:["https://hkejys9654-tech.github.io"],secrets:[ADMIN_CODE]},async (request,response)=>{
+  if(request.method!=="POST")return response.status(405).json({error:"method_not_allowed"});
+  const {code,idToken}=request.body||{};
+  if(typeof code!=="string"||!code||code.length>64||typeof idToken!=="string")return response.status(400).json({error:"invalid_request"});
+  let uid;
+  try{uid=(await getAuth().verifyIdToken(idToken)).uid;}catch(err){return response.status(401).json({error:"invalid_token"});}
+  const db=getFirestore(),now=Date.now();
+  const ip=String(request.headers["x-forwarded-for"]||request.ip||"unknown").split(",")[0].trim();
+  const refs=[db.collection("adminAttempts").doc("ip_"+sha(ip).toString("hex").slice(0,32)),db.collection("adminAttempts").doc("all")];
+  const states=(await Promise.all(refs.map(r=>r.get()))).map(s=>s.exists?s.data():{});
+  const lock=Math.max(...states.map(d=>Number(d.lockUntil||0)));
+  if(lock>now)return response.status(429).json({error:"locked",minutes:Math.ceil((lock-now)/60000)});
+  const ok=crypto.timingSafeEqual(sha(code),sha(ADMIN_CODE.value()));
+  if(!ok){
+    await db.runTransaction(async tx=>{
+      const cur=(await Promise.all(refs.map(r=>tx.get(r)))).map(s=>s.exists?s.data():{});
+      cur.forEach((d,i)=>{
+        const fresh=now-Number(d.windowStart||0)>WINDOW_MS,fails=(fresh?0:Number(d.fails||0))+1,limit=i===0?MAX_FAILS:GLOBAL_FAILS;
+        tx.set(refs[i],fails>=limit?{fails:0,windowStart:now,lockUntil:now+LOCK_MS}:{fails,windowStart:fresh?now:Number(d.windowStart),lockUntil:0});
+      });
+    });
+    return response.status(403).json({error:"wrong_code"});
+  }
+  await refs[0].set({fails:0,windowStart:now,lockUntil:0});
+  const expiresAt=now+ADMIN_HOURS*60*60*1000;
+  await getAuth().setCustomUserClaims(uid,{admin:true,adminExp:expiresAt});
+  return response.json({ok:true,expiresAt});
 });

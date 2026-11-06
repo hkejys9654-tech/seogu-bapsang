@@ -35,15 +35,15 @@ once('<meta charset="UTF-8" />', `<meta charset="UTF-8" />
 once('<link rel="manifest" href="./manifest.json" />\n', '');
 once('<meta name="apple-mobile-web-app-capable" content="yes" />\n', '');
 const externalScripts = /<script src="[^"\n]+"><\/script>\n/g;
-assert.equal([...html.matchAll(externalScripts)].length, 5, 'Exactly five known external SDK scripts');
+assert.equal([...html.matchAll(externalScripts)].length, 6, 'Exactly six known external SDK scripts');
 html = html.replace(externalScripts, '');
 region('const firebaseConfig = {', 'const SLOTS=', '');
 once('const PUSH_REGISTER_ENDPOINT = "https://asia-northeast3-seogu-bapsang.cloudfunctions.net/registerPushToken";', 'const PUSH_REGISTER_ENDPOINT = "";');
 once('let firebaseOn=false;', 'const firebaseOn=false;');
 once('let db=null;', 'const db=null;');
-const adminHash = /^const ADMIN_CODE_SHA256="[a-f0-9]{64}";$/gm;
-assert.equal([...html.matchAll(adminHash)].length, 1, 'One production admin hash');
-html = html.replace(adminHash, 'const ADMIN_CODE_SHA256="demo-only-no-password";');
+const adminHash = /^const ADMIN_LOGIN_ENDPOINT="https:\/\/[^"]+";$/gm;
+assert.equal([...html.matchAll(adminHash)].length, 1, 'One production admin login endpoint');
+html = html.replace(adminHash, 'const ADMIN_LOGIN_ENDPOINT="";');
 
 // No browser storage is ever touched; even accidental future saveLocal calls
 // remain confined to this tab's memory and demo-only key names.

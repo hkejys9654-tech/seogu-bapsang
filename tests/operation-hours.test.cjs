@@ -60,11 +60,10 @@ test('home keeps booking hours brief while the guide retains operational details
  assert.equal(c.operationNotice().includes('현업근로자'),false);
  assert.ok(guide.includes('총 240명'));assert.equal(run('SLOTS.length'),6);assert.ok(guide.includes('10:00~11:00'));assert.equal(/QR/.test(guide),false);
 });
-test('admin verification rejects the old demo code and handles configured SHA-256 correctly',async()=>{
- const {c}=app();assert.equal(await c.verifyAdminCode('1234'),false);assert.equal(await c.verifyAdminCode(''),false);
- const configured=html.match(/const ADMIN_CODE_SHA256="([a-f0-9]+)"/)[1];
- c.crypto={subtle:{digest:async()=>Buffer.from(configured,'hex')}};
- assert.equal(await c.verifyAdminCode('test-only-input'),true);
+test('the app carries no admin code or hash; verification needs the server',async()=>{
+ const {c}=app();assert.equal(/ADMIN_CODE_SHA256|[a-f0-9]{64}/.test(html.match(/const ADMIN_LOGIN_ENDPOINT[^\n]*/)[0]),false);
+ assert.equal(/ADMIN_CODE_SHA256/.test(html),false);
+ assert.equal(await c.verifyAdminCode('1234'),false);assert.equal(await c.verifyAdminCode(''),false);
 });
 test('an expired QR cannot bypass the late-arrival notice; manual attendance remains available',()=>{
  const {c,run}=app();run('todayDate=()=>"2026-10-19";reservationTimePassed=()=>true');

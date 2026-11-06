@@ -124,16 +124,20 @@ test('connection retry replaces failed listeners instead of accumulating subscri
   assert.equal(h.listeners.filter(l=>l.active).length,3);assert.equal(h.gets.filter(g=>g.name==='notices').at(-1).limit,10);
 });
 
-test('verified administrator is restored on browser reopen without saving the password',async()=>{
+test('a remembered device reopens admin only after the server-issued admin mark is confirmed',async()=>{
   const storage=new Map(),first=setup({storage});
   assert.equal(first.run('st.adminUnlocked'),false);
   await first.run('st.tab="more";unlockAdmin()');
   assert.equal(storage.size,1);assert.equal([...storage.values()].some(value=>value.includes('test-admin-code')),false);
   const reopened=setup({storage});
+  assert.equal(reopened.run('st.adminUnlocked'),false,'the stored mark alone must never unlock');
+  await reopened.start();
+  reopened.run('firebase.auth=()=>({onAuthStateChanged:cb=>cb({uid:"u1"})});adminClaimValid=async()=>true;restoreAdminSession()');await reopened.flush();await reopened.flush();
   assert.equal(reopened.run('st.adminUnlocked'),true);assert.equal(reopened.run('st.tab'),'more');
-  await reopened.start();assert.equal(reopened.active('reservations').length,1);
-  reopened.run('prompt=()=>{throw Error("Must not ask twice")};unlockAdmin()');
-  assert.equal(reopened.toasts.some(t=>t.includes('열지 못했습니다')),false);
+  const forged=setup({storage:new Map([['sg_real_admin_session',JSON.stringify('verified')]])});
+  await forged.start();
+  forged.run('firebase.auth=()=>({onAuthStateChanged:cb=>cb({uid:"u2"})});adminClaimValid=async()=>false;restoreAdminSession()');await forged.flush();await forged.flush();
+  assert.equal(forged.run('st.adminUnlocked'),false,'a copied storage value without a server mark stays locked');
   assert.equal(setup().run('st.adminUnlocked'),false);
 });
 
@@ -174,7 +178,7 @@ test('a late password verification cannot restore administrator mode after logou
 
 test('explicit logout in another tab removes current administrator listeners',async()=>{
   const storage=new Map(),first=setup({storage});await first.run('unlockAdmin()');
-  const other=setup({storage});await other.start();assert.equal(other.active('reservations').length,1);
+  const other=setup({storage});await other.start();await other.run('st.tab="more";unlockAdmin()');await other.flush();assert.equal(other.active('reservations').length,1);
   first.run('closeAdmin()');other.run('syncAdminLogout({key:"sg_real_admin_session"})');await other.flush();
   assert.equal(other.run('st.adminUnlocked'),false);assert.equal(other.listeners.some(l=>l.active&&l.id===null),false);
 });
