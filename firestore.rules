@@ -35,8 +35,10 @@ service cloud.firestore {
              'callToken', 'callBatchId', 'isOverflow', 'requeuedAt', 'updatedAt']);
     }
 
+    // 예약 목록 전체(이름·부서·번호)는 관리자만 볼 수 있음. 직원은 자기 예약 한 건만 직접 열람
     match /reservations/{id} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isAdmin();
       allow create: if isAdmin() || freshBooking();
       allow update: if isAdmin() || staffCancel() || staffRebook() || staffRequeue();
       allow delete: if isAdmin();
@@ -45,7 +47,7 @@ service cloud.firestore {
     // 관리자만 바꿀 수 있는 것
     match /queueControls/{id} { allow read: if true; allow write: if isAdmin(); }
     match /notices/{id}       { allow read: if true; allow write: if isAdmin(); }
-    match /penalties/{id}     { allow read: if true; allow write: if isAdmin(); }
+    match /penalties/{id}     { allow get: if true; allow list, write: if isAdmin(); }
     match /config/{id}        { allow read: if true; allow write: if isAdmin(); }
 
     // 예약할 때 직원 앱이 함께 쓰는 것
