@@ -12,9 +12,19 @@ service cloud.firestore {
     function changed() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
+    // 예약은 그 날짜의 10:00~11:00(한국 시각, 서버 시계 기준)에만 가능. 폰 시계를 바꿔도 소용없음
+    function inBookingWindow() {
+      let d = request.resource.data.date;
+      let day = timestamp.date(int(d[0:4]), int(d[5:7]), int(d[8:10]));
+      return request.time >= day + duration.value(1, 'h')
+        && request.time < day + duration.value(2, 'h');
+    }
     function freshBooking() {
-      return request.resource.data.status in ['reserved', 'late']
-        && request.resource.data.callStatus == 'waiting';
+      return request.resource.data.date is string
+        && request.resource.data.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.status in ['reserved', 'late']
+        && request.resource.data.callStatus == 'waiting'
+        && inBookingWindow();
     }
     function staffCancel() {
       return resource.data.status == 'reserved'

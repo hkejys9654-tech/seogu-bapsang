@@ -728,14 +728,14 @@ document.addEventListener("DOMContentLoaded", init);
 async function init(){
   if(new URLSearchParams(location.search).get("open")==="my")st.tab="my";
   migrateUserOrganization();populateOrganizationSelect("org",st.user&&st.user.orgKey||"");populateDeptSelect("org","dept",st.user&&st.user.dept||"");
-  try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();firebaseOn=true;st.reservations=[];st.penalties={};st.queueControls={};refreshDataScope(true);listenNotices();loadSchedule();restoreAdminSession();}
+  try{firebase.initializeApp(firebaseConfig);db=firebase.firestore();firebaseOn=true;st.reservations=[];st.penalties={};st.queueControls={};refreshDataScope(true);listenNotices();loadSchedule();restoreAdminSession();if(typeof syncServerClock==="function")syncServerClock();}
   catch(e){console.error("Firebase init failed:",e);firebaseInitFailed=true;st.reservations=[];st.penalties={};st.queueControls={};}
   const sharedKey=new URLSearchParams(location.search).get("s");
   if(sharedKey&&/^[a-z0-9]{6,40}$/.test(sharedKey))openShared(sharedKey);
   if(st.user)syncStaffProfile();
   render();updateLoginState();
   if(!ticketClockTimer)ticketClockTimer=setInterval(()=>{updateTicketClock();updateOperationClock();if(st.date!==todayDate()&&!isAdminData())refreshDataScope();},1000);
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){refreshDataScope();refreshOverview();}});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){syncServerClock();refreshDataScope();refreshOverview();}});
   window.addEventListener("offline",()=>{render()});
   window.addEventListener("online",()=>retryConnection());
   window.addEventListener("storage",syncAdminLogout);
@@ -876,7 +876,7 @@ function callVisual(r,isToday=true){
 function timestampMs(v){if(!v)return 0;if(typeof v==="number")return v;if(typeof v.toMillis==="function")return v.toMillis();if(typeof v.seconds==="number")return v.seconds*1000;return 0}
 function queueRows(date,time){return st.reservations.filter(r=>r.date===date&&r.time===time&&r.status!=="cancelled"&&r.status!=="noshow"&&r.qrEligible!==false).sort((a,b)=>(Number(a.queueNumber)||9999)-(Number(b.queueNumber)||9999)||timestampMs(a.createdAt)-timestampMs(b.createdAt)||String(a.id).localeCompare(String(b.id)))}
 function queueNumberFor(r){if(Number(r.queueNumber)>0)return Number(r.queueNumber);const rows=queueRows(r.date,r.time),index=rows.findIndex(v=>v.id===r.id);return index>=0?index+1:0}
-function liveClockText(){return new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"Asia/Seoul"})}
+function liveClockText(){return new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0)).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false,timeZone:"Asia/Seoul"})}
 function updateTicketClock(){const el=document.getElementById("ticketClock");if(el)el.textContent=liveClockText()}
 function notificationPermission(){return typeof Notification==="undefined"?"unsupported":Notification.permission}
 function pushConnectionView(){
@@ -1021,14 +1021,22 @@ function code(date,time,emp){return"SGMEAL|"+date+"|"+time+"|"+emp}
 function docId(date,emp){return date+"_"+emp}
 function slotId(date,time){return date+"_"+time.replace(":","")}
 
-function koreaClock(now=new Date()){
+// 휴대폰 시계가 틀려도 10시 열림을 맞추도록, 서버 시각과의 차이를 재서 씁니다(예약 가능 여부는 서버 규칙이 한 번 더 확인).
+var clockOffsetMs=0;
+function serverNow(){return new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0))}
+async function syncServerClock(){
+  try{const t0=Date.now(),res=await fetch(location.pathname+"?clock="+t0,{method:"HEAD",cache:"no-store"}),t1=Date.now(),h=res.headers.get("date");if(!h)return;const server=Date.parse(h)+500;if(!Number.isFinite(server))return;clockOffsetMs=server-(t0+t1)/2;}catch(e){}
+}
+// 예약 점검용으로 어떤 기기·브라우저에서 예약했는지만 함께 남깁니다.
+function clientInfo(){let installed=false,ua="";try{installed=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;ua=String(navigator.userAgent||"").slice(0,200)}catch(e){}return {ua,installed,clockOffsetMs:Math.round(clockOffsetMs)}}
+function koreaClock(now=new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0))){
   const parts=Object.fromEntries(new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(now).map(p=>[p.type,p.value]));
   return {date:`${parts.year}-${parts.month}-${parts.day}`,minutes:Number(parts.hour)*60+Number(parts.minute)};
 }
 function todayDate(){return koreaClock().date;}
-function reservationWindowState(now=new Date()){if(OPEN_ALL_DAY_FOR_TEST)return "open";const {minutes}=koreaClock(now);return minutes<600?"before":minutes<660?"open":"closed";}
-function reservationWindowOpen(now=new Date()){return reservationWindowState(now)==="open";}
-function reservationWindowMessage(now=new Date()){return reservationWindowState(now)==="before"?"오전 10:00에 예약이 열립니다":reservationWindowState(now)==="closed"?"오늘 예약이 마감되었습니다 · 11:00 마감":"예약 접수 중 · 11:00 마감";}
+function reservationWindowState(now=new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0))){if(OPEN_ALL_DAY_FOR_TEST)return "open";const {minutes}=koreaClock(now);return minutes<600?"before":minutes<660?"open":"closed";}
+function reservationWindowOpen(now=new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0))){return reservationWindowState(now)==="open";}
+function reservationWindowMessage(now=new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0))){return reservationWindowState(now)==="before"?"오전 10:00에 예약이 열립니다":reservationWindowState(now)==="closed"?"오늘 예약이 마감되었습니다 · 11:00 마감":"예약 접수 중 · 11:00 마감";}
 function slotEndTime(time){const toMin=t=>{const [h,m]=String(t).split(":").map(Number);return h*60+m},i=slotIndex(time);let len=SLOT_MINUTES;if(i>=0&&i<SLOTS.length-1)len=toMin(SLOTS[i+1][0])-toMin(time);else if(i>0)len=toMin(time)-toMin(SLOTS[i-1][0]);const end=toMin(time)+Math.max(1,len);return `${String(Math.floor(end/60)).padStart(2,"0")}:${String(end%60).padStart(2,"0")}`;}
 // 관리자가 바꾸는 시간대·인원표. 저장하면 다음 날부터 적용됩니다.
 // config/slotSchedule 문서의 versions=[{from:"YYYY-MM-DD",slots:[{time,cap}]}] 중 날짜에 맞는 것을 씁니다.
@@ -1114,7 +1122,7 @@ function schedulePanel(){
     <div class="btnrow"><button class="btn primary full" onclick="saveSchedule()" ${saveSchedule.pending?"disabled":""}>${saveSchedule.pending?"저장 중…":"내일부터 적용하기"}</button></div></div>`;
 }
 
-function reservationTimePassed(r,now=new Date()){
+function reservationTimePassed(r,now=new Date(Date.now()+(typeof clockOffsetMs==="number"?clockOffsetMs:0))){
   if(OPEN_ALL_DAY_FOR_TEST)return false;
   const clock=koreaClock(now);if(!r||r.date!==clock.date||slotIndex(r.time)<0)return false;
   const [h,m]=slotEndTime(r.time).split(":").map(Number);return clock.minutes>=h*60+m;
@@ -1263,7 +1271,7 @@ async function reserve(){
     if(remain(bookingDate,time)<partySize)return toast(`${partySize}명이 함께 예약할 잔여석이 부족합니다.`);
     const {late,overflow}=booking;
     const queueNumber=Math.max(0,...st.reservations.filter(r=>r.date===bookingDate&&r.time===time).map(r=>Number(r.queueNumber)||0))+1;
-    const item={id:docId(bookingDate,user.emp),name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),members:booking.members,shareKey:"",createdAt:Date.now()};
+    const item={id:docId(bookingDate,user.emp),name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",...(typeof clientInfo==="function"?{client:clientInfo()}:{}),status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),members:booking.members,shareKey:"",createdAt:Date.now()};
     // Rebooking a canceled local reservation replaces its stable document ID.
     st.reservations=st.reservations.filter(r=>r.id!==item.id);st.reservations.push(item);
     st.members=[];st.memberResults=[];saveLocal();go("my");toast(late?lateReservationNotice():partySize>1?`${partySize}명 단체 예약이 완료되었습니다.`:"개인 예약이 완료되었습니다.");
@@ -1325,7 +1333,7 @@ async function reserveFirebase(booking=null){
       if(!late&&count+partySize>liveCap)throw new Error("FULL");
       if(!late&&overflow&&!overflowQuotaReleased()&&overflowCountNow+partySize>EARLY_OVERFLOW_QUOTA)throw new Error("OVERFLOW_FULL");
       const now=firebase.firestore.FieldValue.serverTimestamp();
-      const item={name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),members,shareKey,createdAt:now,updatedAt:now};
+      const item={name:user.name,orgKey:org.key,orgName:org.name,dept:user.dept,emp:user.emp,date:bookingDate,time,originalTime:time,assignedTime:assigned,isOverflow:overflow,queueNumber,requeueCount:0,callStatus:"waiting",reservationType:partySize>1?"group":"individual",partySize,meal:"점심식사",place:"본관 구내식당",loc:"서구청 본관 지하 1층",...(typeof clientInfo==="function"?{client:clientInfo()}:{}),status:late?"late":"reserved",qrEligible:!late,code:late?"":code(bookingDate,time,user.emp),members,shareKey,createdAt:now,updatedAt:now};
       if(!late)tx.set(sRef,{...queueLedgerPatch(sData,null,item),cap:liveCap,count:count+partySize,overflowCount:overflowCountNow+(overflow?partySize:0),nextQueueNumber:queueNumber,updatedAt:now},{merge:true});
       tx.set(rRef,item);
       for(const m of members)tx.set(db.collection("companions").doc(docId(bookingDate,m.emp)),{reservationId:docId(bookingDate,user.emp),ownerEmp:user.emp,ownerName:user.name,date:bookingDate,time,createdAt:now});
@@ -1355,7 +1363,8 @@ async function reserveFirebase(booking=null){
       const errorCode=String(e.code||"").replace(/^firestore\//,""),offline=navigator.onLine===false||errorCode==="offline";
       if(errorCode==="aborted")toast("동시 예약이 몰려 처리하지 못했어요. 다시 예약해주세요.");
       else if(errorCode==="resource-exhausted")toast("서버 이용 한도에 도달했어요. 관리자에게 알려주세요.");
-      else if(errorCode==="permission-denied"||errorCode==="unauthenticated")toast("예약 권한을 확인하지 못했어요. 관리자에게 문의해주세요.");
+      else if((errorCode==="permission-denied"||errorCode==="unauthenticated")&&reservationWindowState()!=="open"){syncServerClock();toast("예약 시간(10:00~11:00)이 아니에요. 서버 시계 기준으로 다시 확인해주세요.");}
+      else if(errorCode==="permission-denied"||errorCode==="unauthenticated"){syncServerClock();toast("예약 권한을 확인하지 못했어요. 잠시 뒤 다시 눌러주세요.");}
       else if(["unavailable","deadline-exceeded","offline"].includes(errorCode)||offline){
         const reason=offline?"인터넷 연결이 끊겼어요.":errorCode==="deadline-exceeded"?"서버 응답이 늦어졌어요.":"서버에 연결하지 못했어요.";
         let timer;

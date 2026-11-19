@@ -68,6 +68,7 @@ async function scanLoop(){}
 function stopScanner(){}`);
 region('async function unlockAdmin(){', '// Remember only this browser', 'async function unlockAdmin(){demoRole("admin");}');
 region('async function verifyAdminCode(', 'async function unlockAdmin(){', 'async function verifyAdminCode(){return true;}');
+region('async function syncServerClock(){', '// 예약 점검용', 'async function syncServerClock(){}\n');
 lineFunction('updateLoginState', 'function updateLoginState(){}');
 lineFunction('saveLogin', 'function saveLogin(){demoRole("staff");}');
 lineFunction('editUser', 'function editUser(){toast("체험직원으로 이용합니다.");}');
