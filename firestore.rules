@@ -34,6 +34,15 @@ service cloud.firestore {
     function staffRebook() {
       return resource.data.status == 'cancelled' && freshBooking();
     }
+    // 단체 예약 인원 줄이기: 인원은 줄이기만 가능(최소 1명), 바꿀 수 있는 칸도 정해져 있음
+    function staffReduce() {
+      return resource.data.status == 'reserved'
+        && request.resource.data.status == 'reserved'
+        && request.resource.data.partySize is int
+        && request.resource.data.partySize >= 1
+        && request.resource.data.partySize < resource.data.get('partySize', 1)
+        && changed().hasOnly(['partySize', 'members', 'reservationType', 'updatedAt']);
+    }
     function staffRequeue() {
       return resource.data.status == 'reserved'
         && resource.data.callStatus == 'passed'
@@ -50,7 +59,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdmin();
       allow create: if isAdmin() || freshBooking();
-      allow update: if isAdmin() || staffCancel() || staffRebook() || staffRequeue();
+      allow update: if isAdmin() || staffCancel() || staffRebook() || staffRequeue() || staffReduce();
       allow delete: if isAdmin();
     }
 

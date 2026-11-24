@@ -36,9 +36,9 @@ function setup(options={}){
   return{st,records,toasts,ledgerCalls,commits,run:code=>vm.runInContext(code,context),get transactionCalls(){return transactionCalls;}};
 }
 
-test('call transition and anonymous queue ledger commit together without changing capacity count',async()=>{
+test('a new call keeps the earlier group green and commits the anonymous queue ledger without changing capacity count',async()=>{
   const h=setup();await h.run('callNext(10)');
-  assert.equal(h.records.get('reservations/a').callStatus,'passed');
+  assert.equal(h.records.get('reservations/a').callStatus,'called');
   assert.equal(h.records.get('reservations/b').callStatus,'called');
   assert.equal(h.records.get('reservations/c').callStatus,'called');
   assert.equal(h.records.get('reservations/d').callStatus,'waiting');
@@ -86,7 +86,7 @@ test('stale toggle does not reopen a queue another administrator just closed',as
 });
 
 test('local demo retains call and close behavior',async()=>{
-  const h=setup({firebaseOn:false});await h.run('callNext(10)');assert.equal(h.st.reservations.find(r=>r.id==='a').callStatus,'passed');await h.run('closeCurrentCall()');assert.equal(h.st.reservations.find(r=>r.id==='b').callStatus,'passed');await h.run('toggleQueueClosed()');assert.equal(h.st.queueControls[slot].closed,true);assert.equal(h.transactionCalls,0);
+  const h=setup({firebaseOn:false});await h.run('callNext(10)');assert.equal(h.st.reservations.find(r=>r.id==='a').callStatus,'called');await h.run('closeCurrentCall()');assert.equal(h.st.reservations.find(r=>r.id==='b').callStatus,'passed');await h.run('toggleQueueClosed()');assert.equal(h.st.queueControls[slot].closed,true);assert.equal(h.transactionCalls,0);
 });
 
 test('custom counts from one up to the slot capacity call exactly that many individual reservations',async()=>{

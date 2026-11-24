@@ -83,3 +83,43 @@ exports.adminLogin=onRequest({cors:["https://hkejys9654-tech.github.io"],secrets
   await getAuth().setCustomUserClaims(uid,{admin:true,adminExp:expiresAt});
   return response.json({ok:true,expiresAt});
 });
+
+// 자동 호출: 평일 11~12시 매분 실행. 타임이 시작되면 그 타임 예약자 전원을 '호출'로 바꾸고(→ notifyEntryCall이 알림 발송),
+// 타임 동안 새로 들어온 대기자(재대기 등)도 이어서 부릅니다. 관리자가 '마감'한 타임은 건너뜁니다.
+const {onSchedule}=require("firebase-functions/v2/scheduler");
+const DEFAULT_SLOTS=[["11:40",40],["11:45",40],["11:50",40],["11:55",40],["12:00",40],["12:05",40]];
+const WORDS=["솔잎","한결","새봄","느티","푸른","이음","바른","마루","온빛","다온"];
+const toMin=t=>{const [h,m]=String(t).split(":").map(Number);return h*60+m;};
+function koreaNow(){const d=new Date(Date.now()+9*3600*1000);return {date:d.toISOString().slice(0,10),min:d.getUTCHours()*60+d.getUTCMinutes()};}
+function slotsFor(date,versions){
+  let pick=null;for(const v of versions||[])if(v&&typeof v.from==="string"&&v.from<=date&&(!pick||v.from>pick.from))pick=v;
+  const list=pick&&Array.isArray(pick.slots)?pick.slots.map(s=>[String(s.time),Number(s.cap)]).filter(s=>/^\d{2}:\d{2}$/.test(s[0])):[];
+  return (list.length?list:DEFAULT_SLOTS).sort((a,b)=>a[0].localeCompare(b[0]));
+}
+function slotEnd(slots,i){const start=toMin(slots[i][0]);if(i<slots.length-1)return toMin(slots[i+1][0]);return start+(i>0?start-toMin(slots[i-1][0]):5);}
+exports.autoCallSlots=onSchedule({schedule:"* 11-12 * * 1-5",timeZone:"Asia/Seoul",retryCount:0,maxInstances:1},async()=>{
+  const db=getFirestore(),{date,min}=koreaNow();
+  const cfg=await db.collection("config").doc("slotSchedule").get();
+  const slots=slotsFor(date,cfg.exists?cfg.data().versions:[]);
+  for(let i=0;i<slots.length;i++){
+    const time=slots[i][0];
+    if(min<toMin(time)||min>=slotEnd(slots,i))continue;
+    const key=date+"_"+time.replace(":",""),controlRef=db.collection("queueControls").doc(key),slotRef=db.collection("slotCounts").doc(key);
+    const query=db.collection("reservations").where("date","==",date).where("time","==",time).where("status","==","reserved");
+    await db.runTransaction(async tx=>{
+      const [control,ledgerSnap,rows]=await Promise.all([tx.get(controlRef),tx.get(slotRef),tx.get(query)]);
+      if(control.exists&&control.data().closed===true)return;
+      const waiting=rows.docs.filter(d=>{const r=d.data();return r.qrEligible!==false&&r.callStatus!=="called";});
+      if(!waiting.length)return;
+      const now=new Date(),token="초록 · "+WORDS[Math.floor(Math.random()*WORDS.length)],batchId=key+"_auto_"+now.getTime();
+      const entries={};
+      for(const d of waiting){
+        const r=d.data();
+        tx.update(d.ref,{callStatus:"called",callToken:token,callBatchId:batchId,calledAt:now,autoCalled:true,updatedAt:now});
+        const q=Number(r.queueNumber);if(Number.isInteger(q)&&q>0)entries[String(q)]={size:Math.max(1,Math.min(10,Math.trunc(Number(r.partySize)||1))),waiting:false};
+      }
+      if(Object.keys(entries).length&&ledgerSnap.exists)tx.set(slotRef,{queueEntries:entries,updatedAt:now},{merge:true});
+      tx.set(controlRef,{date,time,callRevision:Number(control.exists&&control.data().callRevision||0)+1,autoCalledAt:now,updatedAt:now},{merge:true});
+    });
+  }
+});
