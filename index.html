@@ -869,10 +869,9 @@ function callVisual(r,isToday=true){
   if(r.status==="checkedin")return{message:"입장 완료",status:"이용 완료",short:"입장 완료",pill:"checkin",token:"",theme:{accent:"#2563eb",soft:"#eff6ff",ink:"#1e40af"}};
   if(r.status==="noshow"||r.status==="cancelled"||isLateReservationStatus(r.status))return{message:"사용할 수 없는 입장표",status:"입장 불가",short:"입장 불가",pill:"cancel",token:"",theme:{accent:"#dc2626",soft:"#fef2f2",ink:"#991b1b"}};
   if(!isToday)return{message:"지난 예약입니다",status:"예약 내역",short:"지난 예약",pill:"reserve",token:"",theme:ticketTheme(r.time)};
-  // 자기 타임이 끝나면 호출 여부와 상관없이 바로 빨간색입니다.
+  // 초록은 관리자가 부른 사람만(시간이 돼도 자동으로 켜지지 않음). 부른 사람은 예약시간이 지나도 초록 유지.
+  if(r.callStatus==="called")return{message:"지금 입장하세요",status:"초록색 입장 허용",short:"입장 호출",pill:"checkin",token:r.callToken||"초록 · 확인",theme:{accent:"#16a34a",soft:"#dcfce7",ink:"#14532d"}};
   if(reservationTimePassed(r))return{message:"12:10 이후 식사해주세요",status:"예약시간 지남 · 안내자 확인",short:"예약시간 지남",pill:"cancel",token:"",theme:{accent:"#dc2626",soft:"#fef2f2",ink:"#991b1b"}};
-  // 자기 타임이 시작되면 자동으로 초록(서버도 같은 시각에 호출 알림을 보냄). 관리자는 그 전에 미리 부를 수 있음.
-  if(r.callStatus==="called"||reservationSlotStarted(r))return{message:"지금 입장하세요",status:"초록색 입장 허용",short:"입장 호출",pill:"checkin",token:r.callToken||"초록 · 확인",theme:{accent:"#16a34a",soft:"#dcfce7",ink:"#14532d"}};
   if(r.callStatus==="passed")return{message:"호출이 지났습니다",status:"안내자에게 문의",short:"호출 지남",pill:"cancel",token:"",theme:{accent:"#dc2626",soft:"#fef2f2",ink:"#991b1b"}};
   return{message:"아직 들어가지 마세요",status:"회색 · 호출 대기",short:"대기 중",pill:"reserve",token:"",theme:{accent:"#64748b",soft:"#f1f5f9",ink:"#334155"}};
 }
@@ -1371,7 +1370,7 @@ async function reserveFirebase(booking=null){
       const errorCode=String(e.code||"").replace(/^firestore\//,""),offline=navigator.onLine===false||errorCode==="offline";
       if(errorCode==="aborted")toast("동시 예약이 몰려 처리하지 못했어요. 다시 예약해주세요.");
       else if(errorCode==="resource-exhausted")toast("서버 이용 한도에 도달했어요. 관리자에게 알려주세요.");
-      else if((errorCode==="permission-denied"||errorCode==="unauthenticated")&&reservationWindowState()!=="open"){syncServerClock();toast("예약 시간(10:00~11:00)이 아니에요. 서버 시계 기준으로 다시 확인해주세요.");}
+      else if((errorCode==="permission-denied"||errorCode==="unauthenticated")&&!reservationWindowOpen()){syncServerClock();toast("예약 시간(10:00~11:00)이 아니에요. 서버 시계 기준으로 다시 확인해주세요.");}
       else if(errorCode==="permission-denied"||errorCode==="unauthenticated"){syncServerClock();toast("예약 권한을 확인하지 못했어요. 잠시 뒤 다시 눌러주세요.");}
       else if(["unavailable","deadline-exceeded","offline"].includes(errorCode)||offline){
         const reason=offline?"인터넷 연결이 끊겼어요.":errorCode==="deadline-exceeded"?"서버 응답이 늦어졌어요.":"서버에 연결하지 못했어요.";

@@ -39,15 +39,14 @@ test('late arrival starts at the end of the reserved five minute interval',()=>{
  assert.equal(c.reservationTimePassed({...r,time:'12:00'},at('12:04:59')),false);
  assert.equal(c.reservationTimePassed({...r,time:'12:00'},at('12:05:00')),true);
 });
-test('tickets turn green when the slot starts, red as soon as it ends; early admin calls are green; checked-in stays complete',()=>{
- const {c,run}=app();run('firebaseOn=false;reservationTimePassed=()=>true');
- assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'called'}).short,'예약시간 지남');
- assert.equal(c.callVisual({status:'checkedin',time:'11:40',callStatus:'called'}).short,'입장 완료');
- run('reservationTimePassed=()=>false;reservationSlotStarted=()=>true');
- assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'waiting'}).short,'입장 호출');
- run('reservationSlotStarted=()=>false');
+test('only an administrator call turns a ticket green; a called ticket stays green after its slot; uncalled ones expire',()=>{
+ const {c,run}=app();run('firebaseOn=false;reservationSlotStarted=()=>true;reservationTimePassed=()=>false');
  assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'waiting'}).short,'대기 중');
  assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'called'}).short,'입장 호출');
+ run('reservationTimePassed=()=>true');
+ assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'called'}).short,'입장 호출');
+ assert.equal(c.callVisual({status:'reserved',time:'11:40',callStatus:'waiting'}).short,'예약시간 지남');
+ assert.equal(c.callVisual({status:'checkedin',time:'11:40',callStatus:'called'}).short,'입장 완료');
 });
 test('clock refreshes the open screen only on minute changes and does not disrupt settings forms',()=>{
  const {run}=app();run('let renders=0;render=()=>renders++;koreaClock=()=>({date:"2026-10-19",minutes:659});st.tab="home";updateOperationClock();updateOperationClock()');assert.equal(run('renders'),1);

@@ -99,6 +99,9 @@ function slotsFor(date,versions){
 function slotEnd(slots,i){const start=toMin(slots[i][0]);if(i<slots.length-1)return toMin(slots[i+1][0]);return start+(i>0?start-toMin(slots[i-1][0]):5);}
 exports.autoCallSlots=onSchedule({schedule:"* 11-12 * * 1-5",timeZone:"Asia/Seoul",retryCount:0,maxInstances:1},async()=>{
   const db=getFirestore(),{date,min}=koreaNow();
+  // 2026-11-25 한꺼번에 몰리는 문제로 중단. config/autoCall 문서의 enabled가 true일 때만 동작(스케줄러도 일시중지해 둠).
+  const sw=await db.collection("config").doc("autoCall").get();
+  if(!sw.exists||sw.data().enabled!==true)return;
   const cfg=await db.collection("config").doc("slotSchedule").get();
   const slots=slotsFor(date,cfg.exists?cfg.data().versions:[]);
   for(let i=0;i<slots.length;i++){
