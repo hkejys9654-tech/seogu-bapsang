@@ -90,7 +90,6 @@ lineFunction('rules', 'function rules(){openModal("체험 안내",`<p>직원 예
 const qrDetails = /<details class="qr-details">[\s\S]*?<\/details>/g;
 assert.equal([...html.matchAll(qrDetails)].length, 1, 'One ticket QR section');
 html = html.replace(qrDetails, '');
-once('초록색으로 바뀌면 이 화면을 보여주세요.', '호출 후 초록색으로 바뀌는 모습을 체험하세요.');
 once('const CALL_OPEN_NOTICE="호출을 기다리는 동안 이 화면을 켜두세요. 화면을 닫거나 잠그면 호출 알림을 받을 수 없어요.";', 'const CALL_OPEN_NOTICE="위의 관리자 버튼으로 호출한 뒤 직원 화면을 확인하세요.";');
 once('<div class="ticket-call">', '<div class="demo-watermark">체험용 · 실제 예약/입장 불가</div><div class="ticket-call">');
 once('<div class="done-top">', '<div class="demo-watermark">체험용 · 실제 예약/입장 불가</div><div class="done-top">');
