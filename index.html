@@ -969,8 +969,20 @@ async function showCallNotification(title,body,url="./?open=my"){
   if(notificationPermission()!=="granted"||!("serviceWorker" in navigator))return;
   try{const registration=await ensureCallWorker();await registration.showNotification(title,{body,icon:"./icon-192.png",badge:"./icon-192.png",tag:"seogu-entry-call",renotify:true,vibrate:[250,120,250,120,400],data:{url}})}catch(error){console.warn("Call notification could not be displayed.")}
 }
+// 같은 호출은 이 기기에서 한 번만 알립니다. 앱을 다시 열 때마다 반복되지 않게 기억해 둡니다.
+const notifiedCallKeys=new Set();
+function markCallNotified(r){
+  const key=`${r.id||r.date+"_"+r.emp}|${r.callBatchId||r.callToken||""}`;let list=[];
+  try{list=JSON.parse(localStorage.getItem("sg_real_notified_calls"))||[]}catch(e){}
+  if(notifiedCallKeys.has(key)||list.includes(key))return false;
+  notifiedCallKeys.add(key);list.push(key);
+  try{localStorage.setItem("sg_real_notified_calls",JSON.stringify(list.slice(-30)))}catch(e){}
+  return true;
+}
+function callIsStale(r){const v=r.calledAt,t=v&&typeof v.toMillis==="function"?v.toMillis():Number(v||0);return t>0&&Date.now()-t>15*60*1000}
 function notifyCall(r){
   if(!st.user||r.emp!==st.user.emp||r.date!==todayDate()||r.status!=="reserved"||r.callStatus!=="called")return;
+  if(callIsStale(r)||!markCallNotified(r))return;
   // Once background push is registered, its service worker handles hidden tabs.
   if(pushConnection.mode==="push"&&pushConnection.emp===st.user.emp&&document.visibilityState==="hidden")return;
   if(navigator.vibrate)navigator.vibrate([250,120,250,120,400]);
